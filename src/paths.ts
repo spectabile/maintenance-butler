@@ -5,38 +5,28 @@ import * as vscode from 'vscode';
 import { VSCodeInstall } from './types';
 
 export function detectInstalls(): VSCodeInstall[] {
-  const config = vscode.workspace.getConfiguration('vscodeJanitor');
-  const portableOverride: string = config.get('portableDataPath', '');
-  const includeInsiders: boolean = config.get('includeInsiders', false);
-  const installs: VSCodeInstall[] = [];
+  // Always return exactly the install that is currently running — never touch other installs.
+  // Users run the command in each install they want to clean.
 
-  // Portable: env var set by VS Code itself when running in portable mode, or user override
-  const portableData = process.env['VSCODE_PORTABLE'] || portableOverride.trim() || undefined;
+  // Portable: VS Code sets VSCODE_PORTABLE automatically when running in portable mode
+  const portableData = process.env['VSCODE_PORTABLE'];
   if (portableData && fs.existsSync(portableData)) {
     const udPath = path.join(portableData, 'user-data');
     const extPath = path.join(portableData, 'extensions');
     if (fs.existsSync(udPath)) {
-      installs.push({ name: 'Portable', userDataPath: udPath, extensionsPath: extPath });
+      return [{ name: 'Portable', userDataPath: udPath, extensionsPath: extPath }];
     }
   }
 
-  // Standard install
-  const standard = getInstallPaths('Code');
-  if (standard && fs.existsSync(standard.userDataPath)) {
-    if (!installs.some(i => samePath(i.userDataPath, standard.userDataPath))) {
-      installs.push({ name: 'Standard', ...standard });
-    }
+  // Standard or Insiders — detected via vscode.env.appName
+  const isInsiders = vscode.env.appName.toLowerCase().includes('insiders');
+  const appFolder = isInsiders ? 'Code - Insiders' : 'Code';
+  const install = getInstallPaths(appFolder);
+  if (install && fs.existsSync(install.userDataPath)) {
+    return [{ name: isInsiders ? 'Insiders' : 'Standard', ...install }];
   }
 
-  // Insiders
-  if (includeInsiders) {
-    const insiders = getInstallPaths('Code - Insiders');
-    if (insiders && fs.existsSync(insiders.userDataPath)) {
-      installs.push({ name: 'Insiders', ...insiders });
-    }
-  }
-
-  return installs;
+  return [];
 }
 
 function getInstallPaths(appName: string): { userDataPath: string; extensionsPath: string } | null {

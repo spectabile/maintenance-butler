@@ -6,8 +6,8 @@ import { ScanResult } from './types';
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('vscodeJanitor.clean', runClean),
-    vscode.commands.registerCommand('vscodeJanitor.showDiskUsage', runShowDiskUsage)
+    vscode.commands.registerCommand('maintenanceButler.clean', runClean),
+    vscode.commands.registerCommand('maintenanceButler.showDiskUsage', runShowDiskUsage)
   );
 }
 
@@ -19,35 +19,35 @@ async function runClean(): Promise<void> {
   const installs = detectInstalls();
   if (installs.length === 0) {
     vscode.window.showWarningMessage(
-      'VS Code Janitor: No VS Code installations found. Check the portableDataPath setting.'
+      'Maintenance Butler: No VS Code installations found. Check the portableDataPath setting.'
     );
     return;
   }
 
   let results: ScanResult[] = [];
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'VS Code Janitor: Scanning…', cancellable: false },
+    { location: vscode.ProgressLocation.Notification, title: 'Maintenance Butler: Scanning…', cancellable: false },
     async () => { results = await scanAll(installs); }
   );
 
   const cleanable = results.filter(r => r.sizeBytes > 0 || r.itemCount > 0);
   if (cleanable.length === 0) {
-    vscode.window.showInformationMessage('VS Code Janitor: Nothing to clean — already tidy!');
+    vscode.window.showInformationMessage('Maintenance Butler: Nothing to clean — already tidy!');
     return;
   }
 
-  const config = vscode.workspace.getConfiguration('vscodeJanitor');
+  const config = vscode.workspace.getConfiguration('maintenanceButler');
   const multiInstall = installs.length > 1;
   const totalBytes = cleanable.reduce((sum, r) => sum + r.sizeBytes, 0);
 
   const items = cleanable.map(r => {
     const isEnabled: boolean = config.get(r.target.configKey, r.target.defaultEnabled);
-    const riskIcon = r.target.risk === 'low' ? '$(warning) ' : '$(pass) ';
+    const riskIcon = r.target.risk === 'permanent' ? '$(warning) ' : '$(pass) ';
     const installPrefix = multiInstall ? `[${r.install.name}] ` : '';
     return {
       label: `${riskIcon}${installPrefix}${r.target.label}`,
       description: formatBytes(r.sizeBytes) + (r.itemCount > 1 ? ` · ${r.itemCount} items` : ''),
-      detail: r.target.risk === 'low' ? `⚠️ ${r.target.warning}` : r.target.detail,
+      detail: r.target.risk === 'permanent' ? `⚠️ ${r.target.warning}` : r.target.detail,
       picked: isEnabled,
       scanResult: r,
     };
@@ -55,23 +55,23 @@ async function runClean(): Promise<void> {
 
   const selected = await vscode.window.showQuickPick(items, {
     canPickMany: true,
-    title: `VS Code Janitor — ${formatBytes(totalBytes)} available`,
+    title: `Maintenance Butler — ${formatBytes(totalBytes)} available`,
     placeHolder: 'Select items to clean  (Space = toggle, Enter = confirm)',
   });
 
   if (!selected || selected.length === 0) return;
 
-  // Warn for any low-risk selections
-  const lowRisk = selected.filter(s => s.scanResult.target.risk === 'low');
-  if (lowRisk.length > 0) {
-    const warnings = lowRisk.map(s => `• ${s.scanResult.target.label}: ${s.scanResult.target.warning}`).join('\n');
+  // Warn before permanent deletions
+  const permanent = selected.filter(s => s.scanResult.target.risk === 'permanent');
+  if (permanent.length > 0) {
+    const lines = permanent.map(s => `• ${s.scanResult.target.label}: ${s.scanResult.target.warning}`).join('\n');
     const choice = await vscode.window.showWarningMessage(
-      `${lowRisk.length} low-risk item(s) selected:\n${warnings}`,
+      `⚠️ WARNING — Permanent deletion!\n\nThe following cannot be recovered after cleaning:\n\n${lines}\n\nAre you sure you want to continue?`,
       { modal: true },
-      'Clean All',
+      'Yes, delete permanently',
       'Cancel'
     );
-    if (choice !== 'Clean All') return;
+    if (choice !== 'Yes, delete permanently') return;
   }
 
   // Dry run
@@ -79,7 +79,7 @@ async function runClean(): Promise<void> {
   if (dryRun) {
     const total = selected.reduce((sum, s) => sum + s.scanResult.sizeBytes, 0);
     vscode.window.showInformationMessage(
-      `VS Code Janitor (dry run): would free ${formatBytes(total)} across ${selected.length} item(s).`
+      `Maintenance Butler (dry run): would free ${formatBytes(total)} across ${selected.length} item(s).`
     );
     return;
   }
@@ -90,7 +90,7 @@ async function runClean(): Promise<void> {
   const allErrors: string[] = [];
 
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'VS Code Janitor: Cleaning…', cancellable: false },
+    { location: vscode.ProgressLocation.Notification, title: 'Maintenance Butler: Cleaning…', cancellable: false },
     async (progress) => {
       for (let i = 0; i < selected.length; i++) {
         const item = selected[i];
@@ -106,15 +106,15 @@ async function runClean(): Promise<void> {
   );
 
   if (allErrors.length > 0) {
-    const channel = vscode.window.createOutputChannel('VS Code Janitor');
+    const channel = vscode.window.createOutputChannel('Maintenance Butler');
     channel.appendLine('Errors during cleanup:');
     allErrors.forEach(e => channel.appendLine(`  • ${e}`));
     channel.show();
     vscode.window.showWarningMessage(
-      `VS Code Janitor: Freed ${formatBytes(totalFreed)} with ${allErrors.length} error(s). See Output panel.`
+      `Maintenance Butler: Freed ${formatBytes(totalFreed)} with ${allErrors.length} error(s). See Output panel.`
     );
   } else {
-    vscode.window.showInformationMessage(`VS Code Janitor: Freed ${formatBytes(totalFreed)} — done!`);
+    vscode.window.showInformationMessage(`Maintenance Butler: Freed ${formatBytes(totalFreed)} — done!`);
   }
 }
 
@@ -123,19 +123,19 @@ async function runClean(): Promise<void> {
 async function runShowDiskUsage(): Promise<void> {
   const installs = detectInstalls();
   if (installs.length === 0) {
-    vscode.window.showWarningMessage('VS Code Janitor: No VS Code installations found.');
+    vscode.window.showWarningMessage('Maintenance Butler: No VS Code installations found.');
     return;
   }
 
   let results: ScanResult[] = [];
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'VS Code Janitor: Scanning…', cancellable: false },
+    { location: vscode.ProgressLocation.Notification, title: 'Maintenance Butler: Scanning…', cancellable: false },
     async () => { results = await scanAll(installs); }
   );
 
-  const channel = vscode.window.createOutputChannel('VS Code Janitor');
+  const channel = vscode.window.createOutputChannel('Maintenance Butler');
   channel.clear();
-  channel.appendLine('VS Code Janitor — Disk Usage Report');
+  channel.appendLine('Maintenance Butler — Disk Usage Report');
   channel.appendLine('='.repeat(52));
 
   let grandTotal = 0;
@@ -148,7 +148,7 @@ async function runShowDiskUsage(): Promise<void> {
 
     let installTotal = 0;
     for (const r of installResults) {
-      const risk = r.target.risk === 'low' ? '  ⚠ low risk' : '';
+      const risk = r.target.risk === 'permanent' ? '  ⚠ permanent' : '';
       const items = r.itemCount > 1 ? ` (${r.itemCount} items)` : '';
       channel.appendLine(
         `  ${r.target.label.padEnd(42)} ${formatBytes(r.sizeBytes).padStart(10)}${items}${risk}`

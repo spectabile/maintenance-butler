@@ -1,131 +1,134 @@
 {
-  "name": "vscode-janitor",
-  "displayName": "VS Code Janitor",
-  "description": "Cleans up old VS Code extension versions, cache, and logs",
-  "version": "0.1.0",
+  "name": "maintenance-butler",
+  "displayName": "Maintenance Butler",
+  "description": "Reclaim disk space by cleaning VS Code caches, logs, old extension versions, and workspace history",
+  "version": "0.3.0",
   "publisher": "spectabile",
   "license": "MIT",
   "engines": {
     "vscode": "^1.74.0"
   },
+  "icon": "images/icon.png",
   "categories": ["Other"],
-  "keywords": ["cleanup", "cache", "extensions", "maintenance", "disk space"],
+  "keywords": ["cleanup", "cache", "maintenance", "disk space", "logs", "history", "workspace", "cleaner"],
   "repository": {
     "type": "git",
-    "url": "https://github.com/spectabile/vscode-janitor"
+    "url": "https://github.com/spectabile/maintenance-butler"
   },
   "activationEvents": [
-    "onCommand:vscodeJanitor.clean",
-    "onCommand:vscodeJanitor.showDiskUsage"
+    "onCommand:maintenanceButler.clean",
+    "onCommand:maintenanceButler.showDiskUsage"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "vscodeJanitor.clean",
-        "title": "VS Code Janitor: Clean..."
+        "command": "maintenanceButler.clean",
+        "title": "Maintenance Butler: Clean..."
       },
       {
-        "command": "vscodeJanitor.showDiskUsage",
-        "title": "VS Code Janitor: Show Disk Usage"
+        "command": "maintenanceButler.showDiskUsage",
+        "title": "Maintenance Butler: Show Disk Usage"
       }
     ],
-    "configuration": {
-      "title": "VS Code Janitor",
-      "properties": {
-        "vscodeJanitor.cleanCachedData": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean CachedData — V8 bytecode cache. Zero risk: auto-regenerated on next launch."
-        },
-        "vscodeJanitor.cleanCodeCache": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean Code Cache — Chromium bytecode cache. Zero risk: auto-regenerated."
-        },
-        "vscodeJanitor.cleanHttpCache": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean HTTP Cache — network request cache. Zero risk: like clearing browser cache."
-        },
-        "vscodeJanitor.cleanWebStorage": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean WebStorage — webview asset cache (Service Worker CacheStorage). Zero risk: auto-regenerated."
-        },
-        "vscodeJanitor.cleanGPUCaches": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean GPU caches — GPUCache, DawnGraphiteCache, DawnWebGPUCache, VideoDecodeStats. Zero risk: auto-regenerated."
-        },
-        "vscodeJanitor.cleanCrashpad": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean Crashpad — crash dump files. Zero risk: diagnostic only, no app impact."
-        },
-        "vscodeJanitor.cleanLogs": {
-          "type": "boolean",
-          "default": true,
-          "description": "Clean logs — VS Code and extension host log files. Zero risk: recreated on next launch."
-        },
-        "vscodeJanitor.cleanDuplicateExtensions": {
-          "type": "boolean",
-          "default": true,
-          "description": "Remove old extension versions — keeps only the newest installed version of each extension. Zero risk."
-        },
-        "vscodeJanitor.cleanObsoleteExtensions": {
-          "type": "boolean",
-          "default": true,
-          "description": "Process .obsolete file — deletes extension folders VS Code has already marked for removal. Zero risk."
-        },
-        "vscodeJanitor.cleanCachedExtensionVSIXs": {
-          "type": "boolean",
-          "default": false,
-          "description": "⚠️ Low risk: Clean CachedExtensionVSIXs — cached downloaded extension packages. VS Code re-downloads if needed."
-        },
-        "vscodeJanitor.cleanNetworkCache": {
-          "type": "boolean",
-          "default": false,
-          "description": "⚠️ Low risk: Clean Network cache — minor re-initialization on next VS Code launch."
-        },
-        "vscodeJanitor.cleanServiceWorkerCache": {
-          "type": "boolean",
-          "default": false,
-          "description": "⚠️ Low risk: Clean Service Worker cache — webview extensions re-fetch resources on next webview open."
-        },
-        "vscodeJanitor.cleanOrphanedWorkspaceStorage": {
-          "type": "boolean",
-          "default": false,
-          "description": "⚠️ Low risk: Remove orphaned workspaceStorage entries — per-workspace extension data for folders that no longer exist on disk."
-        },
-        "vscodeJanitor.cleanHistory": {
-          "type": "boolean",
-          "default": false,
-          "description": "⚠️ Low risk: Remove old Local History entries (Timeline panel). Entries older than historyMaxAgeDays will be deleted."
-        },
-        "vscodeJanitor.historyMaxAgeDays": {
-          "type": "number",
-          "default": 30,
-          "minimum": 1,
-          "description": "Local History entries older than this many days will be deleted when cleanHistory is enabled."
-        },
-        "vscodeJanitor.includeInsiders": {
-          "type": "boolean",
-          "default": false,
-          "description": "Also scan and clean VS Code Insiders installation."
-        },
-        "vscodeJanitor.portableDataPath": {
-          "type": "string",
-          "default": "",
-          "description": "Path to a portable VS Code data folder (e.g. D:\\VSCode\\data). Leave empty to rely on the VSCODE_PORTABLE environment variable."
-        },
-        "vscodeJanitor.dryRun": {
-          "type": "boolean",
-          "default": false,
-          "description": "Dry run mode — reports what would be deleted without actually deleting anything."
+    "configuration": [
+      {
+        "title": "Caches & Logs",
+        "properties": {
+          "maintenanceButler.cleanCachedData": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean CachedData — V8 bytecode cache. Auto-regenerated on next launch."
+          },
+          "maintenanceButler.cleanCodeCache": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean Code Cache — Chromium bytecode cache. Auto-regenerated."
+          },
+          "maintenanceButler.cleanHttpCache": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean HTTP Cache — network request cache. Like clearing browser cache."
+          },
+          "maintenanceButler.cleanWebStorage": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean WebStorage — webview asset cache. Auto-regenerated."
+          },
+          "maintenanceButler.cleanGPUCaches": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean GPU caches — GPUCache, DawnGraphiteCache, DawnWebGPUCache, VideoDecodeStats. Auto-regenerated."
+          },
+          "maintenanceButler.cleanCrashpad": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean Crashpad — crash dump files. Diagnostic only, no app impact."
+          },
+          "maintenanceButler.cleanLogs": {
+            "type": "boolean",
+            "default": true,
+            "description": "Clean logs — VS Code and extension host log files. Recreated on next launch."
+          },
+          "maintenanceButler.cleanDuplicateExtensions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Old Extension Versions — removes older installed versions, keeps only the newest."
+          },
+          "maintenanceButler.cleanObsoleteExtensions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Process .obsolete file — deletes extension folders VS Code has already marked for removal."
+          },
+          "maintenanceButler.cleanCachedExtensionVSIXs": {
+            "type": "boolean",
+            "default": false,
+            "description": "Clean CachedExtensionVSIXs — cached downloaded extension packages. VS Code re-downloads if needed."
+          },
+          "maintenanceButler.cleanNetworkCache": {
+            "type": "boolean",
+            "default": false,
+            "description": "Clean Network cache — minor re-initialization on next VS Code launch."
+          },
+          "maintenanceButler.cleanServiceWorkerCache": {
+            "type": "boolean",
+            "default": false,
+            "description": "Clean Service Worker cache — webview extensions re-fetch resources on next webview open."
+          }
+        }
+      },
+      {
+        "title": "Your History",
+        "properties": {
+          "maintenanceButler.cleanOrphanedWorkspaceStorage": {
+            "type": "boolean",
+            "default": false,
+            "description": "⚠️ Remove orphaned workspace storage — permanently deletes saved workspace state (open tabs, scroll positions, extension data) for project folders that no longer exist on disk."
+          },
+          "maintenanceButler.cleanHistory": {
+            "type": "boolean",
+            "default": false,
+            "description": "⚠️ Remove old Local History entries (Timeline panel) — permanently deletes file snapshots older than historyMaxAgeDays. Cannot be recovered."
+          }
+        }
+      },
+      {
+        "title": "General",
+        "properties": {
+          "maintenanceButler.historyMaxAgeDays": {
+            "type": "number",
+            "default": 30,
+            "minimum": 1,
+            "description": "Local History entries older than this many days will be deleted when cleanHistory is enabled."
+          },
+          "maintenanceButler.dryRun": {
+            "type": "boolean",
+            "default": false,
+            "description": "Dry run mode — reports what would be deleted without actually deleting anything."
+          }
         }
       }
-    }
+    ]
   },
   "scripts": {
     "compile": "tsc -p ./",

@@ -6,7 +6,7 @@ import { VSCodeInstall, TargetDef, ScanResult } from './types';
 import { TARGETS } from './targets';
 
 export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> {
-  const config = vscode.workspace.getConfiguration('vscodeJanitor');
+  const config = vscode.workspace.getConfiguration('maintenanceButler');
   const results: ScanResult[] = [];
 
   for (const install of installs) {
@@ -142,7 +142,6 @@ async function scanObsolete(
         count++;
       }
     }
-    if (count > 0) count++; // count the .obsolete file itself
     return { sizeBytes, count };
   } catch {
     return { sizeBytes: 0, count: 0 };

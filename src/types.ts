@@ -4,7 +4,7 @@ export interface VSCodeInstall {
   extensionsPath: string;
 }
 
-export type RiskLevel = 'zero' | 'low';
+export type RiskLevel = 'safe' | 'permanent';
 
 export type CleanMode =
   | 'directory'
