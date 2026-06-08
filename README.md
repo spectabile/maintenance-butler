@@ -98,6 +98,16 @@ Maintenance Butler always cleans only the installation it is running in. To clea
 
 ---
 
+## Disclaimer
+
+Maintenance Butler permanently deletes files from your file system. While every effort has been made to ensure that only safe, recoverable, or clearly labelled targets are cleaned, **you use this extension at your own risk**.
+
+Spectabile accepts no responsibility for data loss, corrupted installations, or any other damage — direct or indirect — resulting from the use of this extension. Before enabling any target marked ⚠️, make sure you understand what will be deleted and that you have backups of anything you cannot afford to lose.
+
+By using Maintenance Butler you confirm that you have read the documentation, understand what each cleaning target does, and take full responsibility for the actions you choose to perform.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE)

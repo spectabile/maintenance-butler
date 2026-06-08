@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-06-08
+
+### Added
+- Disclaimer section in README — clarifies user responsibility for permanent deletions
+
 ## [0.3.0] — 2026-06-08
 
 ### Added
