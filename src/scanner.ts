@@ -16,6 +16,7 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
 
       let sizeBytes = 0;
       let itemCount = 0;
+      let workspaceEntries: WorkspaceEntry[] | undefined;
 
       try {
         if (target.cleanMode === 'directory') {
@@ -40,6 +41,7 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
           const entries = await findAllWorkspaceEntries(existingPaths[0], currentPaths);
           for (const e of entries) sizeBytes += e.sizeBytes;
           itemCount = entries.length;
+          workspaceEntries = entries;
         } else if (target.cleanMode === 'history-age') {
           const maxAgeDays: number = config.get('historyMaxAgeDays', 30);
           const old = await findOldHistoryFolders(existingPaths[0], maxAgeDays);
@@ -50,7 +52,7 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
         continue;
       }
 
-      results.push({ target, install, paths: existingPaths, sizeBytes, itemCount });
+      results.push({ target, install, paths: existingPaths, sizeBytes, itemCount, workspaceEntries });
     }
   }
 

@@ -141,10 +141,10 @@ export const TARGETS: TargetDef[] = [
   {
     id: 'workspaceStoragePicker',
     configKey: 'cleanWorkspaceStorage',
-    label: 'Workspace Storage…',
-    detail: 'Choose which workspace states to permanently delete — open tabs, scroll positions, extension data',
+    label: 'Existing Workspace Storage…',
+    detail: 'Workspace states for project folders that still exist on disk — pick which ones to permanently delete',
     risk: 'permanent',
-    warning: 'Permanently deletes saved workspace state — open tabs, scroll positions, extension data. A workspace picker will appear next.',
+    warning: 'Permanently deletes saved workspace state — open tabs, scroll positions, extension data — for the workspaces you selected.',
     defaultEnabled: false,
     cleanMode: 'workspace-storage-picker',
     getPaths: (i: VSCodeInstall) => [path.join(i.userDataPath, 'User', 'workspaceStorage')],
@@ -152,7 +152,7 @@ export const TARGETS: TargetDef[] = [
   {
     id: 'history',
     configKey: 'cleanHistory',
-    label: 'Local History (Timeline)',
+    label: 'Timeline History',
     detail: 'File snapshots visible in the Timeline panel — entries older than historyMaxAgeDays days will be deleted',
     risk: 'permanent',
     warning: 'Permanently deletes file history snapshots from the Timeline panel. These cannot be recovered.',

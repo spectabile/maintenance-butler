@@ -39,6 +39,7 @@ export interface ScanResult {
   paths: string[];
   sizeBytes: number;
   itemCount: number;
+  workspaceEntries?: WorkspaceEntry[];
 }
 
 export interface CleanResult {
