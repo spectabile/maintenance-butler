@@ -2,7 +2,7 @@ import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { VSCodeInstall, TargetDef, ScanResult } from './types';
+import { VSCodeInstall, TargetDef, ScanResult, WorkspaceEntry } from './types';
 import { TARGETS } from './targets';
 
 export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> {
@@ -35,6 +35,11 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
           const orphans = await findOrphanedWorkspaceFolders(existingPaths[0]);
           for (const p of orphans) sizeBytes += await getDirSize(p);
           itemCount = orphans.length;
+        } else if (target.cleanMode === 'workspace-storage-picker') {
+          const currentPaths = getOpenWorkspacePaths();
+          const entries = await findAllWorkspaceEntries(existingPaths[0], currentPaths);
+          for (const e of entries) sizeBytes += e.sizeBytes;
+          itemCount = entries.length;
         } else if (target.cleanMode === 'history-age') {
           const maxAgeDays: number = config.get('historyMaxAgeDays', 30);
           const old = await findOldHistoryFolders(existingPaths[0], maxAgeDays);
@@ -179,6 +184,49 @@ export async function findOrphanedWorkspaceFolders(storagePath: string): Promise
     // ignore
   }
   return orphans;
+}
+
+// --- All workspace entries (for picker) ---
+
+function getOpenWorkspacePaths(): string[] {
+  const paths: string[] = [];
+  vscode.workspace.workspaceFolders?.forEach(f => paths.push(f.uri.fsPath.toLowerCase()));
+  if (vscode.workspace.workspaceFile) paths.push(vscode.workspace.workspaceFile.fsPath.toLowerCase());
+  return paths;
+}
+
+export async function findAllWorkspaceEntries(
+  storagePath: string,
+  excludePaths: string[] = []
+): Promise<WorkspaceEntry[]> {
+  const entries: WorkspaceEntry[] = [];
+  try {
+    const dirs = await fs.readdir(storagePath, { withFileTypes: true });
+    await Promise.all(
+      dirs.map(async (dir) => {
+        if (!dir.isDirectory()) return;
+        const entryPath = path.join(storagePath, dir.name);
+        const workspaceJson = path.join(entryPath, 'workspace.json');
+        try {
+          const content = await fs.readFile(workspaceJson, 'utf8');
+          const data: Record<string, string> = JSON.parse(content);
+          const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
+          if (!rawUri) return;
+          const projectPath = uriToPath(rawUri);
+          if (!projectPath) return;
+          if (excludePaths.includes(projectPath.toLowerCase())) return;
+          const isOrphaned = !fsSync.existsSync(projectPath);
+          const sizeBytes = await getDirSize(entryPath);
+          entries.push({ storagePath: entryPath, projectPath, isOrphaned, sizeBytes });
+        } catch {
+          // Unreadable workspace.json — skip
+        }
+      })
+    );
+  } catch {
+    // ignore
+  }
+  return entries;
 }
 
 // --- Old history folders ---

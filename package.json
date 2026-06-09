@@ -2,7 +2,7 @@
   "name": "maintenance-butler",
   "displayName": "Maintenance Butler",
   "description": "Reclaim disk space by cleaning VS Code caches, logs, old extension versions, and workspace history",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "publisher": "spectabile",
   "license": "MIT",
   "engines": {
@@ -104,6 +104,11 @@
             "type": "boolean",
             "default": false,
             "description": "⚠️ Remove orphaned workspace storage — permanently deletes saved workspace state (open tabs, scroll positions, extension data) for project folders that no longer exist on disk."
+          },
+          "maintenanceButler.cleanWorkspaceStorage": {
+            "type": "boolean",
+            "default": false,
+            "description": "⚠️ Workspace Storage picker — opens a list of all workspace states so you can choose which ones to permanently delete. Currently open workspace is excluded automatically."
           },
           "maintenanceButler.cleanHistory": {
             "type": "boolean",

@@ -4,6 +4,12 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-06-08
+
+### Added
+- Group separators in the Clean picker — "Caches & Logs" and "Your History" sections now clearly labelled
+- Workspace Storage picker — choose exactly which workspace states to permanently delete, with Select All toggle, orphaned entries pre-checked, and currently open workspace excluded
+
 ## [0.3.1] — 2026-06-08
 
 ### Added

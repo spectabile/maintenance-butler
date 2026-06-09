@@ -35,6 +35,12 @@ export async function cleanTarget(result: ScanResult, options: CleanOptions): Pr
         case 'orphaned-workspace-storage':
           await cleanOrphans(targetPath, outcome);
           break;
+        case 'workspace-storage-picker':
+          // paths are individual hash folders resolved by the secondary picker
+          outcome.bytesFreed += await getDirSize(targetPath);
+          await fs.rm(targetPath, { recursive: true, force: true });
+          outcome.itemsDeleted++;
+          break;
         case 'history-age':
           await cleanHistory(targetPath, options.historyMaxAgeDays, outcome);
           break;

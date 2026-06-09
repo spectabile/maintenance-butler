@@ -139,6 +139,17 @@ export const TARGETS: TargetDef[] = [
     getPaths: (i: VSCodeInstall) => [path.join(i.userDataPath, 'User', 'workspaceStorage')],
   },
   {
+    id: 'workspaceStoragePicker',
+    configKey: 'cleanWorkspaceStorage',
+    label: 'Workspace Storage…',
+    detail: 'Choose which workspace states to permanently delete — open tabs, scroll positions, extension data',
+    risk: 'permanent',
+    warning: 'Permanently deletes saved workspace state — open tabs, scroll positions, extension data. A workspace picker will appear next.',
+    defaultEnabled: false,
+    cleanMode: 'workspace-storage-picker',
+    getPaths: (i: VSCodeInstall) => [path.join(i.userDataPath, 'User', 'workspaceStorage')],
+  },
+  {
     id: 'history',
     configKey: 'cleanHistory',
     label: 'Local History (Timeline)',

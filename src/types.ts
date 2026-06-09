@@ -11,7 +11,15 @@ export type CleanMode =
   | 'duplicate-extensions'
   | 'obsolete'
   | 'orphaned-workspace-storage'
+  | 'workspace-storage-picker'
   | 'history-age';
+
+export interface WorkspaceEntry {
+  storagePath: string;
+  projectPath: string;
+  isOrphaned: boolean;
+  sizeBytes: number;
+}
 
 export interface TargetDef {
   id: string;
