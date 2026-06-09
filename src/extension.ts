@@ -47,7 +47,7 @@ async function runClean(): Promise<void> {
   const selection = await showCleanPanel(cleanable, config, multiInstall);
   if (!selection || selection.selected.length === 0) return;
 
-  const { selected: selectedResults, workspaceStoragePaths } = selection;
+  const { selected: selectedResults, workspaceStorageMap } = selection;
 
   // Warn before permanent deletions
   const permanent = selectedResults.filter(r => r.target.risk === 'permanent');
@@ -85,10 +85,11 @@ async function runClean(): Promise<void> {
           message: scanResult.target.label,
           increment: 100 / selectedResults.length,
         });
-        const effectiveScanResult =
-          scanResult.target.cleanMode === 'workspace-storage-picker' && workspaceStoragePaths
-            ? { ...scanResult, paths: workspaceStoragePaths }
-            : scanResult;
+        const itemKey = `${scanResult.target.id}:${scanResult.install.name}`;
+        const pickerPaths = workspaceStorageMap?.[itemKey];
+        const effectiveScanResult = pickerPaths?.length
+          ? { ...scanResult, paths: pickerPaths }
+          : scanResult;
         const result = await cleanTarget(effectiveScanResult, { historyMaxAgeDays });
         totalFreed += result.bytesFreed;
         allErrors.push(...result.errors);

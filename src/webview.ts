@@ -3,7 +3,7 @@ import { ScanResult } from './types';
 
 export interface CleanSelection {
   selected: ScanResult[];
-  workspaceStoragePaths?: string[];
+  workspaceStorageMap?: Record<string, string[]>;
 }
 
 interface SerializedItem {
@@ -49,7 +49,7 @@ export async function showCleanPanel(
       itemCount: r.itemCount,
       risk: r.target.risk,
       defaultChecked: isEnabled,
-      isWorkspacePicker: r.target.cleanMode === 'workspace-storage-picker',
+      isWorkspacePicker: r.workspaceEntries !== undefined,
     };
     if (item.isWorkspacePicker && r.workspaceEntries) {
       item.workspaceEntries = r.workspaceEntries.map(e => ({
@@ -77,7 +77,7 @@ export async function showCleanPanel(
       if (msg.type === 'clean') {
         const keySet = new Set<string>(msg.selected as string[]);
         const selected = results.filter(r => keySet.has(`${r.target.id}:${r.install.name}`));
-        finish({ selected, workspaceStoragePaths: msg.workspaceStoragePaths });
+        finish({ selected, workspaceStorageMap: msg.workspaceStorageMap });
       } else if (msg.type === 'cancel') {
         finish(undefined);
       }
@@ -116,6 +116,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100%;
   overflow: hidden;
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
@@ -124,19 +125,30 @@ body {
 }
 
 .page-header {
-  padding: 16px 20px 12px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
   border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
   flex-shrink: 0;
 }
 
+.page-header-inner {
+  text-align: center;
+  width: fit-content;
+  max-width: 900px;
+  padding: 20px 20px 16px;
+}
+
 .page-title {
-  font-size: 1.1em;
+  font-size: 1.2em;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 .page-subtitle {
-  font-size: 0.88em;
+  font-size: 1em;
   color: var(--vscode-descriptionForeground);
 }
 
@@ -144,26 +156,39 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.content-inner {
+  width: 100%;
+  max-width: 900px;
+  border-radius: .8rem;
+  background-color: #1c2c35;
 }
 
 .section-label {
-  padding: 10px 20px 5px;
+  padding: 16px 20px 16px;
   font-size: 1.05em;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--vscode-descriptionForeground);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.55);
+  margin-bottom: 4px;
 }
 
 .section-label.danger {
-  color: var(--vscode-editorError-foreground, #f48771);
+  color: #ff4040;
+  margin-top: 20px;
 }
 
 .item-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 20px;
+  padding: 7px 20px;
   cursor: pointer;
   user-select: none;
 }
@@ -198,14 +223,11 @@ body {
 
 .item-badge {
   flex-shrink: 0;
-  font-size: 0.78em;
+  font-size: 0.92em;
   font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 10px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
-  min-width: 60px;
+  min-width: 80px;
   text-align: right;
+  color: var(--vscode-foreground);
 }
 
 .item-row-empty {
@@ -226,16 +248,6 @@ body {
 
 .ws-accordion.open { display: block; }
 
-.ws-subheader {
-  font-size: 0.76em;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--vscode-descriptionForeground);
-  padding: 6px 0 3px;
-  opacity: 0.7;
-}
-
 .ws-entry {
   display: flex;
   align-items: center;
@@ -243,6 +255,7 @@ body {
   padding: 3px 0;
   cursor: pointer;
   user-select: none;
+  border-bottom: 1px dashed rgba(128, 128, 128, 0.30);
 }
 
 .ws-entry input[type="checkbox"] {
@@ -262,7 +275,7 @@ body {
   white-space: nowrap;
 }
 
-.ws-entry-path.orphaned { color: var(--vscode-editorWarning-foreground, #cca700); }
+.ws-entry-path.orphaned { color: #ffa726; }
 
 .ws-entry-size {
   flex-shrink: 0;
@@ -279,12 +292,22 @@ body {
 
 /* Footer */
 .footer {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
+  flex-shrink: 0;
+}
+
+.footer-inner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
-  flex-shrink: 0;
+  width: fit-content;
+  max-width: 900px;
+  padding: 22px 20px 22px;
 }
 
 .btn {
@@ -318,15 +341,19 @@ body {
 <body>
 
 <div class="page-header">
-  <div class="page-title">Maintenance Butler — Clean</div>
-  <div class="page-subtitle">${totalStr} available</div>
+  <div class="page-header-inner">
+    <div class="page-title">Maintenance Butler — Clean</div>
+    <div class="page-subtitle">${totalStr} available</div>
+  </div>
 </div>
 
 <div class="content" id="content"></div>
 
 <div class="footer">
-  <button class="btn btn-primary" id="cleanBtn" disabled>Nothing selected</button>
-  <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+  <div class="footer-inner">
+    <button class="btn btn-primary" id="cleanBtn" disabled>Nothing selected</button>
+    <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+  </div>
 </div>
 
 <script nonce="${nonce}">
@@ -367,13 +394,13 @@ body {
   }
 
   function computeSelection() {
-    var selectedKeys = [], wsPaths = [], totalSize = 0, count = 0;
+    var selectedKeys = [], wsMap = {}, totalSize = 0, count = 0;
     ITEMS.forEach(function (item) {
       if (!checked.has(item.key)) return;
       if (item.isWorkspacePicker) {
         var paths = wsChecked.get(item.key);
         if (!paths || paths.size === 0) return;
-        paths.forEach(function (p) { wsPaths.push(p); });
+        wsMap[item.key] = Array.from(paths);
         totalSize += wsSelectedSize(item);
       } else {
         totalSize += item.sizeBytes;
@@ -381,7 +408,7 @@ body {
       selectedKeys.push(item.key);
       count++;
     });
-    return { selectedKeys: selectedKeys, wsPaths: wsPaths, totalSize: totalSize, count: count };
+    return { selectedKeys: selectedKeys, wsMap: wsMap, totalSize: totalSize, count: count };
   }
 
   function updateFooter() {
@@ -397,7 +424,10 @@ body {
   }
 
   // ── DOM build ──────────────────────────────────────────────────────────────
-  var content = document.getElementById('content');
+  var contentInner = document.createElement('div');
+  contentInner.className = 'content-inner';
+  document.getElementById('content').appendChild(contentInner);
+  var content = contentInner;
   var lastRisk = null;
 
   ITEMS.forEach(function (item) {
@@ -489,8 +519,6 @@ body {
       return container;
     }
 
-    var orphaned = entries.filter(function (e) { return e.isOrphaned; });
-    var active   = entries.filter(function (e) { return !e.isOrphaned; });
     var entryCbs = [];
 
     // Select All row
@@ -515,13 +543,6 @@ body {
       saCb.indeterminate = cur.size > 0 && cur.size < entries.length;
       badge.textContent = fmtBytes(wsSelectedSize(item));
       updateFooter();
-    }
-
-    function addSubheader(text) {
-      var h = document.createElement('div');
-      h.className = 'ws-subheader';
-      h.textContent = text;
-      container.appendChild(h);
     }
 
     function addEntry(entry) {
@@ -559,8 +580,7 @@ body {
       eRow.addEventListener('click', function (e) { if (e.target !== eCb) { eCb.checked = !eCb.checked; toggle(); } });
     }
 
-    if (orphaned.length > 0) { addSubheader('Orphaned — project folder deleted'); orphaned.forEach(addEntry); }
-    if (active.length > 0)   { addSubheader('Active workspaces'); active.forEach(addEntry); }
+    entries.forEach(addEntry);
 
     function selectAllToggle() {
       var newSet = new Set();
@@ -583,7 +603,7 @@ body {
     vscode.postMessage({
       type: 'clean',
       selected: s.selectedKeys,
-      workspaceStoragePaths: s.wsPaths.length > 0 ? s.wsPaths : undefined,
+      workspaceStorageMap: Object.keys(s.wsMap).length > 0 ? s.wsMap : undefined,
     });
   });
 

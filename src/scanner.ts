@@ -33,15 +33,19 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
           sizeBytes = result.sizeBytes;
           itemCount = result.count;
         } else if (target.cleanMode === 'orphaned-workspace-storage') {
-          const orphans = await findOrphanedWorkspaceFolders(existingPaths[0]);
-          for (const p of orphans) sizeBytes += await getDirSize(p);
-          itemCount = orphans.length;
+          const currentPaths = getOpenWorkspacePaths();
+          const entries = await findAllWorkspaceEntries(existingPaths[0], currentPaths);
+          const orphaned = entries.filter(e => e.isOrphaned);
+          for (const e of orphaned) sizeBytes += e.sizeBytes;
+          itemCount = orphaned.length;
+          workspaceEntries = orphaned;
         } else if (target.cleanMode === 'workspace-storage-picker') {
           const currentPaths = getOpenWorkspacePaths();
           const entries = await findAllWorkspaceEntries(existingPaths[0], currentPaths);
-          for (const e of entries) sizeBytes += e.sizeBytes;
-          itemCount = entries.length;
-          workspaceEntries = entries;
+          const active = entries.filter(e => !e.isOrphaned);
+          for (const e of active) sizeBytes += e.sizeBytes;
+          itemCount = active.length;
+          workspaceEntries = active;
         } else if (target.cleanMode === 'history-age') {
           const maxAgeDays: number = config.get('historyMaxAgeDays', 30);
           const old = await findOldHistoryFolders(existingPaths[0], maxAgeDays);

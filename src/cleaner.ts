@@ -6,7 +6,6 @@ import {
   getDirSize,
   groupExtensionsByName,
   compareVersions,
-  findOrphanedWorkspaceFolders,
   findOldHistoryFolders,
 } from './scanner';
 
@@ -33,7 +32,9 @@ export async function cleanTarget(result: ScanResult, options: CleanOptions): Pr
           await cleanObsolete(targetPath, outcome);
           break;
         case 'orphaned-workspace-storage':
-          await cleanOrphans(targetPath, outcome);
+          outcome.bytesFreed += await getDirSize(targetPath);
+          await fs.rm(targetPath, { recursive: true, force: true });
+          outcome.itemsDeleted++;
           break;
         case 'workspace-storage-picker':
           // paths are individual hash folders resolved by the secondary picker
@@ -92,18 +93,6 @@ async function cleanObsolete(extensionsPath: string, outcome: CleanResult): Prom
   }
 }
 
-async function cleanOrphans(storagePath: string, outcome: CleanResult): Promise<void> {
-  const orphans = await findOrphanedWorkspaceFolders(storagePath);
-  for (const orphanPath of orphans) {
-    try {
-      outcome.bytesFreed += await getDirSize(orphanPath);
-      await fs.rm(orphanPath, { recursive: true, force: true });
-      outcome.itemsDeleted++;
-    } catch (err) {
-      outcome.errors.push(`${path.basename(orphanPath)}: ${String(err)}`);
-    }
-  }
-}
 
 async function cleanHistory(
   historyPath: string,

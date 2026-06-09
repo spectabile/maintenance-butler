@@ -4,6 +4,60 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-06-09
+
+### Changed
+- Header and footer now correctly centered in a 900px column (`max-width: 900px; margin: 0 auto` on the zones themselves — the approach that actually works in VS Code webviews)
+- Header title and subtitle centered and enlarged (title 1.2em, subtitle 1em)
+- Content list rendered inside a rounded card (border-radius 0.8rem, dark teal background `#1c2c35`)
+- Section labels: vertical padding increased to 16px for better breathing room
+- Footer buttons centered with 22px vertical padding
+
+## [1.4.9] — 2026-06-09
+
+### Changed
+- Header/footer centering: switched to `display: flex; justify-content: center` on outer zones
+
+## [1.4.8] — 2026-06-09
+
+### Changed
+- Added `width: 100%` to body to establish defined cross-axis width for flex children in webview context
+
+## [1.4.7] — 2026-06-09
+
+### Changed
+- Content items rendered inside a `content-inner` div; `.content` uses `display: flex; flex-direction: column; align-items: center` for centering
+
+## [1.4.6] — 2026-06-09
+
+### Changed
+- Size badges: removed pill background/border-radius, font size increased to 0.92em, color changed to foreground (white on dark themes)
+- Header and footer content wrapped in centered inner divs (`max-width: 900px`) — first centering attempt
+- Footer vertical padding increased
+
+## [1.4.5] — 2026-06-09
+
+### Changed
+- Section labels ("Caches & Logs" / "Your History") now have a solid bottom border — clear visual separator before their items
+- Workspace accordion entries (orphaned/active workspace rows) now separated by subtle dashed borders
+- Removed dashed border from main item rows (was incorrectly placed there in 1.4.4)
+
+## [1.4.4] — 2026-06-09
+
+### Changed
+- "YOUR HISTORY" section now has extra top margin — clear visual breathing room from Caches & Logs
+- Content area constrained to max-width 900px so size badges sit close to item labels instead of floating at the far edge
+- Item rows taller (7px padding) and separated by a subtle dashed border for easier row-scanning
+
+## [1.4.3] — 2026-06-09
+
+### Changed
+- "Orphaned Workspace Storage" renamed to "Orphaned Workspaces" — now shows its own accordion with only orphaned entries, all pre-checked by default
+- "Existing Workspace Storage" renamed to "Existing/Active Workspaces" — accordion shows only active entries, nothing pre-checked by default
+- Both workspace pickers have a "Select All" checkbox, no sub-sections inside each accordion
+- "YOUR HISTORY" section label color changed to vivid red (#ff4040) for better readability
+- Orphaned workspace path color changed to bright amber (#ffa726) instead of muted mustard
+
 ## [1.4.2] — 2026-06-09
 
 ### Changed

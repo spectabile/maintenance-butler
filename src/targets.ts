@@ -130,7 +130,7 @@ export const TARGETS: TargetDef[] = [
   {
     id: 'orphanedWorkspaceStorage',
     configKey: 'cleanOrphanedWorkspaceStorage',
-    label: 'Orphaned Workspace Storage',
+    label: 'Orphaned Workspaces',
     detail: 'Workspace memory (open tabs, scroll positions, extension state) for folders that no longer exist on disk',
     risk: 'permanent',
     warning: 'Permanently deletes saved workspace state — open tabs, scroll positions, extension data — for project folders that no longer exist on disk.',
@@ -141,7 +141,7 @@ export const TARGETS: TargetDef[] = [
   {
     id: 'workspaceStoragePicker',
     configKey: 'cleanWorkspaceStorage',
-    label: 'Existing Workspace Storage…',
+    label: 'Existing/Active Workspaces',
     detail: 'Workspace states for project folders that still exist on disk — pick which ones to permanently delete',
     risk: 'permanent',
     warning: 'Permanently deletes saved workspace state — open tabs, scroll positions, extension data — for the workspaces you selected.',

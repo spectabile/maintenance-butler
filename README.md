@@ -39,8 +39,9 @@ Everything in this group is rebuilt automatically by VS Code. Deleting it is lik
 
 | Target | What it is | Default |
 |--------|-----------|---------|
-| Orphaned Workspace Storage | Every workspace you open gets a storage folder containing open tabs, scroll positions, folded code sections, and extension state. This removes entries for project folders that **no longer exist on disk** — active workspaces are never touched. | Off |
-| Local History / Timeline | VS Code's built-in per-file version history, visible in the Timeline panel. Lets you recover earlier versions of any file you've edited. Removes entries older than `historyMaxAgeDays` (default: 30 days). | Off |
+| Orphaned Workspaces | Every workspace you open gets a storage folder containing open tabs, scroll positions, folded code sections, and extension state. This removes entries for project folders that **no longer exist on disk** — active workspaces are never touched. | Off |
+| Existing/Active Workspaces | Opens a picker listing all workspace states for projects that still exist on disk. Choose exactly which ones to permanently delete. The currently open workspace is excluded automatically. | Off |
+| Timeline History | VS Code's built-in per-file version history, visible in the Timeline panel. Lets you recover earlier versions of any file you've edited. Removes entries older than `historyMaxAgeDays` (default: 30 days). | Off |
 
 **These can accumulate gigabytes over time** — especially on long-lived installations — but they represent real work history. Enable them only if you understand what will be deleted.
 
@@ -86,7 +87,8 @@ Maintenance Butler always cleans only the installation it is running in. To clea
 | `maintenanceButler.cleanNetworkCache` | `false` | Network state cache |
 | `maintenanceButler.cleanServiceWorkerCache` | `false` | Service worker registration cache |
 | `maintenanceButler.cleanOrphanedWorkspaceStorage` | `false` | ⚠️ Workspace state for deleted projects (permanent) |
-| `maintenanceButler.cleanHistory` | `false` | ⚠️ Old Local History / Timeline entries (permanent) |
+| `maintenanceButler.cleanWorkspaceStorage` | `false` | ⚠️ Workspace picker — choose which active workspace states to permanently delete |
+| `maintenanceButler.cleanHistory` | `false` | ⚠️ Old Timeline History entries older than `historyMaxAgeDays` (permanent) |
 | `maintenanceButler.historyMaxAgeDays` | `30` | Age threshold for Local History cleanup |
 | `maintenanceButler.dryRun` | `false` | Report what would be deleted without deleting |
 
