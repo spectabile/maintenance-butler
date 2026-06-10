@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.6.7] — 2026-06-10
+
+### Fixed
+- `getDirSize` returned wrong size for any directory containing subdirectories — a JavaScript pre-await read race caused the directory subtotal to overwrite accumulated file sizes when running inside `Promise.all`; fixed by collecting sizes into an array and summing with `reduce`
+
 ## [1.6.6] — 2026-06-10
 
 ### Changed

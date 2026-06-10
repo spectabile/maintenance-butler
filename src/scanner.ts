@@ -66,24 +66,22 @@ export async function scanAll(installs: VSCodeInstall[]): Promise<ScanResult[]> 
 // --- Directory size ---
 
 export async function getDirSize(dirPath: string): Promise<number> {
-  let total = 0;
   try {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    await Promise.all(
+    const sizes = await Promise.all(
       entries.map(async (entry) => {
         const entryPath = path.join(dirPath, entry.name);
         if (entry.isDirectory()) {
-          total += await getDirSize(entryPath);
-        } else {
-          const stat = await fs.stat(entryPath).catch(() => null);
-          if (stat) total += stat.size;
+          return getDirSize(entryPath);
         }
+        const stat = await fs.stat(entryPath).catch(() => null);
+        return stat ? stat.size : 0;
       })
     );
+    return sizes.reduce((sum, n) => sum + n, 0);
   } catch {
-    // Permission denied or removed during scan — skip
+    return 0;
   }
-  return total;
 }
 
 // --- Duplicate extensions ---
