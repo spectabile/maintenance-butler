@@ -3,7 +3,7 @@ import { detectInstalls } from './paths';
 import { scanAll } from './scanner';
 import { cleanTarget } from './cleaner';
 import { ScanResult } from './types';
-import { showCleanPanel } from './webview';
+import { showCleanPanel, buildCleanPanelHtml, showDiskUsagePanel } from './webview';
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
@@ -44,47 +44,40 @@ async function runClean(): Promise<void> {
     return;
   }
 
-  const selection = await showCleanPanel(cleanable, config, multiInstall);
-  if (!selection || selection.selected.length === 0) return;
+  await showCleanPanel(cleanable, config, multiInstall, {
+    onClean: async (selection, panel) => {
+      const { selected: selectedResults, workspaceStorageMap } = selection;
 
-  const { selected: selectedResults, workspaceStorageMap } = selection;
+      // Warn before permanent deletions — panel stays open behind dialog
+      const permanent = selectedResults.filter(r => r.target.risk === 'permanent' && r.target.warning);
+      if (permanent.length > 0) {
+        const lines = permanent.map(r => `• ${r.target.label}: ${r.target.warning}`).join('\n');
+        const choice = await vscode.window.showWarningMessage(
+          `WARNING — Permanent deletion!\n\nThe following cannot be recovered after cleaning:\n\n${lines}\n\nAre you sure you want to continue?`,
+          { modal: true },
+          'Yes, delete permanently'
+        );
+        if (choice !== 'Yes, delete permanently') {
+          panel.webview.postMessage({ type: 'cleanCancelled' });
+          return;
+        }
+      }
 
-  // Warn before permanent deletions
-  const permanent = selectedResults.filter(r => r.target.risk === 'permanent');
-  if (permanent.length > 0) {
-    const lines = permanent.map(r => `• ${r.target.label}: ${r.target.warning}`).join('\n');
-    const choice = await vscode.window.showWarningMessage(
-      `⚠️ WARNING — Permanent deletion!\n\nThe following cannot be recovered after cleaning:\n\n${lines}\n\nAre you sure you want to continue?`,
-      { modal: true },
-      'Yes, delete permanently',
-      'Cancel'
-    );
-    if (choice !== 'Yes, delete permanently') return;
-  }
+      // Dry run
+      const dryRun: boolean = config.get('dryRun', false);
+      if (dryRun) {
+        const total = selectedResults.reduce((sum, r) => sum + r.sizeBytes, 0);
+        panel.webview.postMessage({ type: 'cleanDone', bytesFreed: total, errors: [], dryRun: true });
+        return;
+      }
 
-  // Dry run
-  const dryRun: boolean = config.get('dryRun', false);
-  if (dryRun) {
-    const total = selectedResults.reduce((sum, r) => sum + r.sizeBytes, 0);
-    vscode.window.showInformationMessage(
-      `Maintenance Butler (dry run): would free ${formatBytes(total)} across ${selectedResults.length} item(s).`
-    );
-    return;
-  }
+      panel.webview.postMessage({ type: 'cleanStart' });
 
-  // Clean
-  const historyMaxAgeDays: number = config.get('historyMaxAgeDays', 30);
-  let totalFreed = 0;
-  const allErrors: string[] = [];
+      const historyMaxAgeDays: number = config.get('historyMaxAgeDays', 30);
+      let totalFreed = 0;
+      const allErrors: string[] = [];
 
-  await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'Maintenance Butler: Cleaning…', cancellable: false },
-    async (progress) => {
       for (const scanResult of selectedResults) {
-        progress.report({
-          message: scanResult.target.label,
-          increment: 100 / selectedResults.length,
-        });
         const itemKey = `${scanResult.target.id}:${scanResult.install.name}`;
         const pickerPaths = workspaceStorageMap?.[itemKey];
         const effectiveScanResult = pickerPaths?.length
@@ -94,20 +87,24 @@ async function runClean(): Promise<void> {
         totalFreed += result.bytesFreed;
         allErrors.push(...result.errors);
       }
-    }
-  );
 
-  if (allErrors.length > 0) {
-    const channel = vscode.window.createOutputChannel('Maintenance Butler');
-    channel.appendLine('Errors during cleanup:');
-    allErrors.forEach(e => channel.appendLine(`  • ${e}`));
-    channel.show();
-    vscode.window.showWarningMessage(
-      `Maintenance Butler: Freed ${formatBytes(totalFreed)} with ${allErrors.length} error(s). See Output panel.`
-    );
-  } else {
-    vscode.window.showInformationMessage(`Maintenance Butler: Freed ${formatBytes(totalFreed)} — done!`);
-  }
+      panel.webview.postMessage({ type: 'cleanDone', bytesFreed: totalFreed, errors: allErrors });
+    },
+
+    onRescan: async (panel, rememberedState) => {
+      let newResults: ScanResult[] = [];
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Maintenance Butler: Scanning…', cancellable: false },
+        async () => { newResults = await scanAll(installs); }
+      );
+      const newConfig = vscode.workspace.getConfiguration('maintenanceButler');
+      const newCleanable = newResults.filter(r =>
+        r.sizeBytes > 0 || r.itemCount > 0 ||
+        newConfig.get<boolean>(r.target.configKey, r.target.defaultEnabled)
+      );
+      panel.webview.html = buildCleanPanelHtml(newCleanable, newConfig, multiInstall, rememberedState);
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -125,36 +122,7 @@ async function runShowDiskUsage(): Promise<void> {
     async () => { results = await scanAll(installs); }
   );
 
-  const channel = vscode.window.createOutputChannel('Maintenance Butler');
-  channel.clear();
-  channel.appendLine('Maintenance Butler — Disk Usage Report');
-  channel.appendLine('='.repeat(52));
-
-  let grandTotal = 0;
-  for (const install of installs) {
-    const installResults = results.filter(r => r.install.name === install.name && r.sizeBytes > 0);
-    if (installResults.length === 0) continue;
-
-    channel.appendLine('');
-    channel.appendLine(`[${install.name}]  ${install.userDataPath}`);
-
-    let installTotal = 0;
-    for (const r of installResults) {
-      const risk = r.target.risk === 'permanent' ? '  ⚠ permanent' : '';
-      const items = r.itemCount > 1 ? ` (${r.itemCount} items)` : '';
-      channel.appendLine(
-        `  ${r.target.label.padEnd(42)} ${formatBytes(r.sizeBytes).padStart(10)}${items}${risk}`
-      );
-      installTotal += r.sizeBytes;
-    }
-    channel.appendLine(`  ${'─'.repeat(54)}`);
-    channel.appendLine(`  ${'Total'.padEnd(42)} ${formatBytes(installTotal).padStart(10)}`);
-    grandTotal += installTotal;
-  }
-
-  channel.appendLine('');
-  channel.appendLine(`Grand total: ${formatBytes(grandTotal)}`);
-  channel.show();
+  showDiskUsagePanel(results, installs);
 }
 
 // ---------------------------------------------------------------------------

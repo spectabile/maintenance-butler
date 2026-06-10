@@ -4,6 +4,55 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.6.6] — 2026-06-10
+
+### Changed
+- Key phrases in item descriptions now rendered in bold: `historyMaxAgeDays`, `no longer exist on disk`, `still exist on disk`
+- Orphaned Workspaces and Active Workspaces descriptions harmonised — fully symmetric wording, differing only on the bolded disk-existence phrase
+
+## [1.6.5] — 2026-06-10
+
+### Changed
+- **Disk Usage Report now opens in a WebviewPanel tab** — same visual style as the Clean panel, grouped by installation, with size and item count per target; the VS Code Output channel is no longer used
+
+## [1.6.4] — 2026-06-10
+
+### Fixed
+- Workspace-picker size badge showed full size instead of `0 B` when the parent item was unchecked on initial render
+
+## [1.6.3] — 2026-06-10
+
+### Fixed
+- Select All badge was missing the `/ total` portion — now always shows `X / Y` format regardless of how the toggle was triggered
+
+## [1.6.2] — 2026-06-10
+
+### Added
+- Checkbox state is now remembered across "Scan Again" — items that were manually checked or unchecked stay that way after a rescan; state resets only when the tab is closed
+
+## [1.6.1] — 2026-06-10
+
+### Changed
+- Permanent-deletion warning dialog is no longer shown for Orphaned Workspaces (those folders no longer exist on disk); dialog is retained for Active Workspaces
+
+## [1.6.0] — 2026-06-10
+
+### Changed
+- **Clean panel stays open at all times** — clicking "Clean" no longer closes the tab; the panel remains visible throughout the operation
+- Cleaning progress and results are now shown inside the panel tab instead of the VS Code Output channel
+- After cleaning: result view displays bytes freed and any errors (capped at 5), with "Scan Again" and "Close" buttons
+- "Scan Again" rescans all installations and reopens the panel with updated sizes
+
+## [1.5.6] — 2026-06-10
+
+### Fixed
+- Permanent-deletion warning dialog showed a duplicate Cancel button and a duplicate ⚠️ icon — only the large orange icon is now shown
+
+## [1.5.1–1.5.5] — 2026-06-10
+
+### Changed
+- CSS updates to improve overall readability and visual polish
+
 ## [1.5.0] — 2026-06-09
 
 ### Changed

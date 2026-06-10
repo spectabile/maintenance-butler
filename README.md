@@ -52,7 +52,7 @@ Everything in this group is rebuilt automatically by VS Code. Deleting it is lik
 Open the Command Palette (`Ctrl+Shift+P`) and search for:
 
 - **Maintenance Butler: Clean…** — scan all installations, select what to clean, and run. Shows sizes for each item. Items from "Your History" display a permanent-deletion warning before proceeding.
-- **Maintenance Butler: Show Disk Usage** — scan without deleting. Outputs a full report to the Output panel.
+- **Maintenance Butler: Show Disk Usage** — scan without deleting. Opens a full disk usage report in a new panel tab, grouped by installation.
 
 ---
 

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ScanResult } from './types';
+import { ScanResult, VSCodeInstall } from './types';
 
 export interface CleanSelection {
   selected: ScanResult[];
@@ -23,11 +23,22 @@ interface SerializedItem {
   }[];
 }
 
+export interface RememberedState {
+  checked: string[];
+  wsChecked: Record<string, string[]>;
+}
+
+export interface CleanPanelHandlers {
+  onClean(selection: CleanSelection, panel: vscode.WebviewPanel): Promise<void>;
+  onRescan(panel: vscode.WebviewPanel, rememberedState?: RememberedState): Promise<void>;
+}
+
 export async function showCleanPanel(
   results: ScanResult[],
   config: vscode.WorkspaceConfiguration,
-  multiInstall: boolean
-): Promise<CleanSelection | undefined> {
+  multiInstall: boolean,
+  handlers: CleanPanelHandlers
+): Promise<void> {
   const panel = vscode.window.createWebviewPanel(
     'maintenanceButlerClean',
     'Maintenance Butler — Clean',
@@ -35,20 +46,48 @@ export async function showCleanPanel(
     { enableScripts: true }
   );
 
+  panel.webview.html = buildCleanPanelHtml(results, config, multiInstall);
+
+  return new Promise<void>(resolve => {
+    panel.webview.onDidReceiveMessage(async msg => {
+      if (msg.type === 'clean') {
+        const keySet = new Set<string>(msg.selected as string[]);
+        const selected = results.filter(r => keySet.has(`${r.target.id}:${r.install.name}`));
+        await handlers.onClean({ selected, workspaceStorageMap: msg.workspaceStorageMap }, panel);
+      } else if (msg.type === 'cancel' || msg.type === 'close') {
+        panel.dispose();
+      } else if (msg.type === 'rescan') {
+        const remembered: RememberedState | undefined = msg.rememberedChecked
+          ? { checked: msg.rememberedChecked as string[], wsChecked: (msg.rememberedWsChecked ?? {}) as Record<string, string[]> }
+          : undefined;
+        await handlers.onRescan(panel, remembered);
+      }
+    });
+    panel.onDidDispose(() => resolve());
+  });
+}
+
+export function buildCleanPanelHtml(
+  results: ScanResult[],
+  config: vscode.WorkspaceConfiguration,
+  multiInstall: boolean,
+  rememberedState?: RememberedState
+): string {
   const totalBytes = results.reduce((sum, r) => sum + r.sizeBytes, 0);
   const nonce = generateNonce();
-
+  const rememberedSet = rememberedState ? new Set(rememberedState.checked) : null;
   const serialized: SerializedItem[] = results.map(r => {
     const isEnabled: boolean = config.get(r.target.configKey, r.target.defaultEnabled);
     const installPrefix = multiInstall ? `[${r.install.name}] ` : '';
+    const key = `${r.target.id}:${r.install.name}`;
     const item: SerializedItem = {
-      key: `${r.target.id}:${r.install.name}`,
+      key,
       label: `${installPrefix}${r.target.label}`,
       detail: r.target.detail,
       sizeBytes: r.sizeBytes,
       itemCount: r.itemCount,
       risk: r.target.risk,
-      defaultChecked: isEnabled,
+      defaultChecked: rememberedSet ? rememberedSet.has(key) : isEnabled,
       isWorkspacePicker: r.workspaceEntries !== undefined,
     };
     if (item.isWorkspacePicker && r.workspaceEntries) {
@@ -61,31 +100,129 @@ export async function showCleanPanel(
     }
     return item;
   });
-
-  panel.webview.html = buildHtml(serialized, totalBytes, nonce);
-
-  return new Promise<CleanSelection | undefined>(resolve => {
-    let resolved = false;
-    const finish = (result: CleanSelection | undefined) => {
-      if (resolved) return;
-      resolved = true;
-      panel.dispose();
-      resolve(result);
-    };
-
-    panel.webview.onDidReceiveMessage(msg => {
-      if (msg.type === 'clean') {
-        const keySet = new Set<string>(msg.selected as string[]);
-        const selected = results.filter(r => keySet.has(`${r.target.id}:${r.install.name}`));
-        finish({ selected, workspaceStorageMap: msg.workspaceStorageMap });
-      } else if (msg.type === 'cancel') {
-        finish(undefined);
-      }
-    });
-
-    panel.onDidDispose(() => finish(undefined));
-  });
+  return buildHtml(serialized, totalBytes, nonce, rememberedState?.wsChecked);
 }
+
+// ── Disk Usage Panel ──────────────────────────────────────────────────────
+
+export function showDiskUsagePanel(results: ScanResult[], installs: VSCodeInstall[]): void {
+  const panel = vscode.window.createWebviewPanel(
+    'maintenanceButlerDiskUsage',
+    'Maintenance Butler — Disk Usage',
+    vscode.ViewColumn.One,
+    { enableScripts: false }
+  );
+  panel.webview.html = buildDiskUsageHtml(results, installs);
+}
+
+function buildDiskUsageHtml(results: ScanResult[], installs: VSCodeInstall[]): string {
+  let grandTotal = 0;
+  const sections: string[] = [];
+
+  for (const install of installs) {
+    const installResults = results.filter(r => r.install.name === install.name && r.sizeBytes > 0);
+    if (installResults.length === 0) continue;
+
+    let installTotal = 0;
+    const rows: string[] = [];
+
+    for (const r of installResults) {
+      installTotal += r.sizeBytes;
+      const isPermanent = r.target.risk === 'permanent';
+      const itemsHtml = r.itemCount > 1 ? `<span class="item-count">${r.itemCount} items</span>` : '';
+      const riskHtml = isPermanent ? `<span class="risk-tag">⚠ permanent</span>` : '';
+      rows.push(`<div class="item-row${isPermanent ? ' permanent' : ''}">
+  <div class="item-meta"><span class="item-name">${esc(r.target.label)}</span>${riskHtml}</div>
+  <div class="item-right">${esc(fmtBytes(r.sizeBytes))}${itemsHtml ? ' ' + itemsHtml : ''}</div>
+</div>`);
+    }
+
+    grandTotal += installTotal;
+    sections.push(`<div class="install-block">
+  <div class="install-header">
+    <span class="install-name">[${esc(install.name)}]</span>
+    <span class="install-path">${esc(install.userDataPath)}</span>
+  </div>
+  ${rows.join('\n  ')}
+  <div class="total-row"><span>Total</span><span>${esc(fmtBytes(installTotal))}</span></div>
+</div>`);
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  display: flex; flex-direction: column; height: 100vh;
+  font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground); background: var(--vscode-editor-background);
+}
+.page-header {
+  width: 100%; max-width: 900px; margin: 0 auto;
+  display: flex; justify-content: center; flex-shrink: 0;
+  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
+}
+.page-header-inner { text-align: center; padding: 20px 20px 16px; }
+.page-title { font-size: 1.2em; font-weight: 600; margin-bottom: 4px; }
+.page-subtitle { font-size: 1em; color: var(--vscode-descriptionForeground); }
+.content {
+  flex: 1; overflow-y: auto; padding: 16px 0 24px;
+  display: flex; flex-direction: column; align-items: center;
+}
+.content-inner { width: 100%; max-width: 900px; border-radius: .8rem; background-color: #1c2c35; }
+.install-block { margin-bottom: 4px; }
+.install-header {
+  padding: 14px 20px; font-weight: 600;
+  border-bottom: 1px solid rgba(128,128,128,0.3);
+  display: flex; align-items: baseline; gap: 10px;
+}
+.install-name { color: var(--vscode-foreground); }
+.install-path { font-size: 0.84em; color: var(--vscode-descriptionForeground); font-weight: 400; }
+.item-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 20px;
+  border-bottom: 1px solid rgba(128,128,128,0.08);
+}
+.item-row.permanent .item-name { color: #f1934c; }
+.item-meta { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.risk-tag { flex-shrink: 0; font-size: 0.78em; color: #f1934c; opacity: 0.75; }
+.item-right {
+  flex-shrink: 0; display: flex; align-items: center; gap: 8px;
+  font-size: 0.9em; color: var(--vscode-descriptionForeground); white-space: nowrap;
+}
+.item-count { font-size: 0.84em; opacity: 0.6; }
+.total-row {
+  display: flex; justify-content: space-between;
+  padding: 10px 20px; font-weight: 600;
+  border-top: 1px solid rgba(128,128,128,0.3); margin-top: 2px;
+}
+</style>
+</head>
+<body>
+<div class="page-header">
+  <div class="page-header-inner">
+    <div class="page-title">Maintenance Butler — Disk Usage</div>
+    <div class="page-subtitle">Grand total: ${esc(fmtBytes(grandTotal))}</div>
+  </div>
+</div>
+<div class="content">
+  <div class="content-inner">
+    ${sections.join('\n    ')}
+  </div>
+</div>
+</body>
+</html>`;
+}
+
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ── Clean Panel internals ─────────────────────────────────────────────
 
 function generateNonce(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -100,8 +237,9 @@ function fmtBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string): string {
+function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string, rememberedWsChecked?: Record<string, string[]>): string {
   const itemsJson = JSON.stringify(items);
+  const rememberedWsJson = JSON.stringify(rememberedWsChecked ?? null);
   const totalStr = fmtBytes(totalBytes);
 
   return `<!DOCTYPE html>
@@ -122,6 +260,8 @@ body {
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
+  --vscode-badge-background: rgba(0, 0, 0, 0.5);
+  --vscode-badge-foreground: #afafaf;
 }
 
 .page-header {
@@ -171,17 +311,37 @@ body {
 .section-label {
   padding: 16px 20px 16px;
   font-size: 1.05em;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--vscode-descriptionForeground);
-  border-bottom: 1px solid rgba(128, 128, 128, 0.55);
+  border-bottom: 1px solid rgba(128, 128, 128, 0.4);
   margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .section-label.danger {
-  color: #ff4040;
-  margin-top: 20px;
+  color: #f1934c;
+  margin-top: 30px;
+}
+
+.section-badge {
+  flex-shrink: 0;
+  font-size: 0.82em;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.section-badge.danger {
+  color: #f1934c;
 }
 
 .item-row {
@@ -223,11 +383,13 @@ body {
 
 .item-badge {
   flex-shrink: 0;
-  font-size: 0.92em;
+  font-size: 0.82em;
   font-weight: 600;
-  min-width: 80px;
-  text-align: right;
-  color: var(--vscode-foreground);
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  white-space: nowrap;
 }
 
 .item-row-empty {
@@ -252,11 +414,13 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 0;
+  padding: 6px 0;
   cursor: pointer;
   user-select: none;
   border-bottom: 1px dashed rgba(128, 128, 128, 0.30);
 }
+
+.ws-entry:hover { background: var(--vscode-list-hoverBackground); }
 
 .ws-entry input[type="checkbox"] {
   flex-shrink: 0;
@@ -275,7 +439,7 @@ body {
   white-space: nowrap;
 }
 
-.ws-entry-path.orphaned { color: #ffa726; }
+.ws-entry-path.orphaned { color: #ba8749; }
 
 .ws-entry-size {
   flex-shrink: 0;
@@ -360,19 +524,25 @@ body {
 (function () {
   const vscode = acquireVsCodeApi();
   const ITEMS = ${itemsJson};
+  const REMEMBERED_WS = ${rememberedWsJson};
 
   // ── State ──────────────────────────────────────────────────────────────────
   const checked = new Set();      // Set<itemKey>
   const wsChecked = new Map();    // Map<itemKey, Set<storagePath>>
+  var lastCleanBtnText = '';
 
   ITEMS.forEach(function (item) {
     if (item.defaultChecked) checked.add(item.key);
     if (item.isWorkspacePicker && item.workspaceEntries) {
-      wsChecked.set(item.key, new Set(
-        item.workspaceEntries
-          .filter(function (e) { return e.isOrphaned; })
-          .map(function (e) { return e.storagePath; })
-      ));
+      if (REMEMBERED_WS && REMEMBERED_WS[item.key]) {
+        wsChecked.set(item.key, new Set(REMEMBERED_WS[item.key]));
+      } else {
+        wsChecked.set(item.key, new Set(
+          item.workspaceEntries
+            .filter(function (e) { return e.isOrphaned; })
+            .map(function (e) { return e.storagePath; })
+        ));
+      }
     }
   });
 
@@ -421,6 +591,21 @@ body {
       btn.disabled = false;
       btn.textContent = 'Clean ' + s.count + ' item' + (s.count !== 1 ? 's' : '') + '  ·  ' + fmtBytes(s.totalSize);
     }
+    updateSectionBadges();
+  }
+
+  function updateSectionBadges() {
+    var sums = {};
+    ITEMS.forEach(function(item) {
+      if (!sums[item.risk]) sums[item.risk] = 0;
+      if (!checked.has(item.key)) return;
+      sums[item.risk] += item.isWorkspacePicker ? wsSelectedSize(item) : item.sizeBytes;
+    });
+    Object.keys(sectionInfo).forEach(function(risk) {
+      var info = sectionInfo[risk];
+      var sel = sums[risk] || 0;
+      info.badgeEl.textContent = fmtBytes(sel) + ' / ' + fmtBytes(info.totalBytes);
+    });
   }
 
   // ── DOM build ──────────────────────────────────────────────────────────────
@@ -429,24 +614,48 @@ body {
   document.getElementById('content').appendChild(contentInner);
   var content = contentInner;
   var lastRisk = null;
+  var sectionInfo = {};
 
   ITEMS.forEach(function (item) {
     // Section header on risk transition
     if (item.risk !== lastRisk) {
+      var sectionTotal = ITEMS
+        .filter(function(i) { return i.risk === item.risk; })
+        .reduce(function(s, i) { return s + i.sizeBytes; }, 0);
       var hdr = document.createElement('div');
       hdr.className = 'section-label' + (item.risk === 'permanent' ? ' danger' : '');
-      hdr.textContent = item.risk === 'permanent'
+      var hdrText = document.createElement('span');
+      hdrText.textContent = item.risk === 'permanent'
         ? '⚠️  Your History — permanently deleted, cannot be recovered'
         : 'Caches & Logs — auto-regenerated, safe to clean';
+      var hdrBadge = document.createElement('span');
+      hdrBadge.className = 'section-badge' + (item.risk === 'permanent' ? ' danger' : '');
+      hdr.appendChild(hdrText);
+      hdr.appendChild(hdrBadge);
       content.appendChild(hdr);
+      sectionInfo[item.risk] = { badgeEl: hdrBadge, totalBytes: sectionTotal };
       lastRisk = item.risk;
     }
 
-    // Empty state — show info row instead of a checkbox
+    // Empty state — title without checkbox, "nothing to clean" as detail
     if (item.sizeBytes === 0 && item.itemCount === 0) {
       var emptyRow = document.createElement('div');
-      emptyRow.className = 'item-row-empty';
-      emptyRow.textContent = item.label + ' — nothing to clean';
+      emptyRow.className = 'item-row';
+      emptyRow.style.cursor = 'default';
+      var spacer = document.createElement('div');
+      spacer.style.cssText = 'width:14px;flex-shrink:0';
+      var emptyMeta = document.createElement('div');
+      emptyMeta.className = 'item-meta';
+      var emptyName = document.createElement('div');
+      emptyName.className = 'item-name';
+      emptyName.textContent = item.label;
+      var emptyDetail = document.createElement('div');
+      emptyDetail.className = 'item-detail';
+      emptyDetail.textContent = 'No items, nothing to clean';
+      emptyMeta.appendChild(emptyName);
+      emptyMeta.appendChild(emptyDetail);
+      emptyRow.appendChild(spacer);
+      emptyRow.appendChild(emptyMeta);
       content.appendChild(emptyRow);
       return;
     }
@@ -468,14 +677,18 @@ body {
 
     var detailEl = document.createElement('div');
     detailEl.className = 'item-detail';
-    detailEl.textContent = item.detail;
+    detailEl.innerHTML = item.detail;
 
     meta.appendChild(nameEl);
     meta.appendChild(detailEl);
 
     var badge = document.createElement('span');
     badge.className = 'item-badge';
-    badge.textContent = item.isWorkspacePicker ? fmtBytes(wsSelectedSize(item)) : fmtBytes(item.sizeBytes);
+    if (item.isWorkspacePicker) {
+      badge.textContent = fmtBytes(checked.has(item.key) ? wsSelectedSize(item) : 0) + ' / ' + fmtBytes(item.sizeBytes);
+    } else {
+      badge.textContent = fmtBytes(checked.has(item.key) ? item.sizeBytes : 0) + ' / ' + fmtBytes(item.sizeBytes);
+    }
 
     row.appendChild(cb);
     row.appendChild(meta);
@@ -494,9 +707,11 @@ body {
       if (cb.checked) {
         checked.add(item.key);
         if (accordion) accordion.classList.add('open');
+        badge.textContent = (item.isWorkspacePicker ? fmtBytes(wsSelectedSize(item)) : fmtBytes(item.sizeBytes)) + ' / ' + fmtBytes(item.sizeBytes);
       } else {
         checked.delete(item.key);
         if (accordion) accordion.classList.remove('open');
+        badge.textContent = '0 B / ' + fmtBytes(item.sizeBytes);
       }
       updateFooter();
     }
@@ -541,7 +756,7 @@ body {
       var cur = wsChecked.get(item.key) || new Set();
       saCb.checked = cur.size > 0 && cur.size === entries.length;
       saCb.indeterminate = cur.size > 0 && cur.size < entries.length;
-      badge.textContent = fmtBytes(wsSelectedSize(item));
+      badge.textContent = fmtBytes(wsSelectedSize(item)) + ' / ' + fmtBytes(item.sizeBytes);
       updateFooter();
     }
 
@@ -587,7 +802,7 @@ body {
       if (saCb.checked) entries.forEach(function (e) { newSet.add(e.storagePath); });
       wsChecked.set(item.key, newSet);
       entryCbs.forEach(function (eCb) { eCb.checked = saCb.checked; });
-      badge.textContent = fmtBytes(wsSelectedSize(item));
+      badge.textContent = fmtBytes(wsSelectedSize(item)) + ' / ' + fmtBytes(item.sizeBytes);
       updateFooter();
     }
 
@@ -599,6 +814,7 @@ body {
 
   // ── Footer buttons ─────────────────────────────────────────────────────────
   document.getElementById('cleanBtn').addEventListener('click', function () {
+    lastCleanBtnText = this.textContent;
     var s = computeSelection();
     vscode.postMessage({
       type: 'clean',
@@ -610,6 +826,82 @@ body {
   document.getElementById('cancelBtn').addEventListener('click', function () {
     vscode.postMessage({ type: 'cancel' });
   });
+
+  // ── Receive messages from extension ──────────────────────────────────────
+  window.addEventListener('message', function(event) {
+    var msg = event.data;
+    if (msg.type === 'cleanCancelled') {
+      var btn = document.getElementById('cleanBtn');
+      btn.disabled = false;
+      btn.textContent = lastCleanBtnText;
+      var cbtn = document.getElementById('cancelBtn');
+      cbtn.disabled = false;
+      cbtn.style.opacity = '';
+    } else if (msg.type === 'cleanStart') {
+      var btn = document.getElementById('cleanBtn');
+      btn.disabled = true;
+      btn.textContent = 'Cleaning…';
+      var cbtn = document.getElementById('cancelBtn');
+      cbtn.disabled = true;
+      cbtn.style.opacity = '0.4';
+    } else if (msg.type === 'cleanDone') {
+      showResults(msg.bytesFreed, msg.errors, msg.dryRun);
+    }
+  });
+
+  function showResults(bytesFreed, errors, dryRun) {
+    var contentEl = document.getElementById('content');
+    contentEl.innerHTML = '';
+    var inner = document.createElement('div');
+    inner.className = 'content-inner';
+    inner.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;min-height:200px;';
+    var icon = document.createElement('div');
+    icon.style.cssText = 'font-size:2.5em;color:' + (errors && errors.length > 0 ? '#f1934c' : 'var(--vscode-terminal-ansiGreen, #4ec9b0)') + ';';
+    icon.textContent = (errors && errors.length > 0) ? '⚠' : '✓';
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:1.4em;font-weight:600;';
+    titleEl.textContent = dryRun ? 'Dry Run — would free ' + fmtBytes(bytesFreed) : 'Freed ' + fmtBytes(bytesFreed);
+    inner.appendChild(icon);
+    inner.appendChild(titleEl);
+    if (errors && errors.length > 0) {
+      var errWrap = document.createElement('div');
+      errWrap.style.cssText = 'width:100%;max-width:600px;margin-top:8px;';
+      var errHdr = document.createElement('div');
+      errHdr.style.cssText = 'font-size:0.88em;color:var(--vscode-descriptionForeground);margin-bottom:6px;';
+      errHdr.textContent = errors.length + ' file' + (errors.length !== 1 ? 's' : '') + ' skipped (locked by VS Code):';
+      errWrap.appendChild(errHdr);
+      for (var i = 0; i < Math.min(errors.length, 5); i++) {
+        var errLine = document.createElement('div');
+        errLine.style.cssText = 'font-size:0.82em;color:var(--vscode-descriptionForeground);padding:1px 0;opacity:0.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        errLine.textContent = '• ' + errors[i];
+        errWrap.appendChild(errLine);
+      }
+      if (errors.length > 5) {
+        var moreEl = document.createElement('div');
+        moreEl.style.cssText = 'font-size:0.82em;color:var(--vscode-descriptionForeground);padding:1px 0;opacity:0.55;';
+        moreEl.textContent = '… and ' + (errors.length - 5) + ' more';
+        errWrap.appendChild(moreEl);
+      }
+      inner.appendChild(errWrap);
+    }
+    contentEl.appendChild(inner);
+    var footerInner = document.querySelector('.footer-inner');
+    footerInner.innerHTML = '';
+    var scanBtn = document.createElement('button');
+    scanBtn.className = 'btn btn-secondary';
+    scanBtn.textContent = 'Scan Again';
+    scanBtn.addEventListener('click', function() {
+      var remWs = {};
+      wsChecked.forEach(function(paths, key) { remWs[key] = Array.from(paths); });
+      vscode.postMessage({ type: 'rescan', rememberedChecked: Array.from(checked), rememberedWsChecked: remWs });
+    });
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-primary';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', function() { vscode.postMessage({ type: 'close' }); });
+    footerInner.appendChild(scanBtn);
+    footerInner.appendChild(closeBtn);
+  }
 
   updateFooter();
 }());

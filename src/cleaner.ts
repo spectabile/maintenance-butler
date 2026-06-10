@@ -21,8 +21,7 @@ export async function cleanTarget(result: ScanResult, options: CleanOptions): Pr
     try {
       switch (result.target.cleanMode) {
         case 'directory':
-          outcome.bytesFreed += await getDirSize(targetPath);
-          await fs.rm(targetPath, { recursive: true, force: true });
+          await rmBestEffort(targetPath, outcome);
           outcome.itemsDeleted++;
           break;
         case 'duplicate-extensions':
@@ -93,6 +92,34 @@ async function cleanObsolete(extensionsPath: string, outcome: CleanResult): Prom
   }
 }
 
+
+async function rmBestEffort(dirPath: string, outcome: CleanResult): Promise<void> {
+  let entries: import('fs').Dirent[];
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const entryPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      await rmBestEffort(entryPath, outcome);
+      try { await fs.rmdir(entryPath); } catch { /* not empty or locked */ }
+    } else {
+      try {
+        const stat = await fs.stat(entryPath).catch(() => null);
+        await fs.unlink(entryPath);
+        if (stat) outcome.bytesFreed += stat.size;
+      } catch (err: any) {
+        if (err?.code !== 'EBUSY' && err?.code !== 'EPERM' && err?.code !== 'EACCES') {
+          outcome.errors.push(`${entry.name}: ${String(err)}`);
+        }
+        // EBUSY / EPERM / EACCES = file locked by running VS Code — skip silently
+      }
+    }
+  }
+  try { await fs.rmdir(dirPath); } catch { /* not empty — fine */ }
+}
 
 async function cleanHistory(
   historyPath: string,
