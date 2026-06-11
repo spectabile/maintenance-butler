@@ -47,6 +47,19 @@ Everything in this group is rebuilt automatically by VS Code. Deleting it is lik
 
 ---
 
+## Status Bar
+
+After VS Code starts, Maintenance Butler scans your installation in the background and shows a bow-tie icon in the status bar:
+
+| Display | Meaning |
+|---------|---------|
+| `⊠ 1.58 GB` | Total size queued for cleaning based on your current settings |
+| `⊠ Clean` | Nothing is queued — all selected targets are already empty |
+
+Clicking the status bar item opens the **Clean…** panel directly.
+
+---
+
 ## Commands
 
 Open the Command Palette (`Ctrl+Shift+P`) and search for:
@@ -90,7 +103,8 @@ Maintenance Butler always cleans only the installation it is running in. To clea
 | `maintenanceButler.cleanWorkspaceStorage` | `false` | ⚠️ Workspace picker — choose which active workspace states to permanently delete |
 | `maintenanceButler.cleanHistory` | `false` | ⚠️ Old Timeline History entries older than `historyMaxAgeDays` (permanent) |
 | `maintenanceButler.historyMaxAgeDays` | `30` | Age threshold for Local History cleanup |
-| `maintenanceButler.dryRun` | `false` | Report what would be deleted without deleting |
+| `maintenanceButler.confirmPermanentDelete` | `true` | Show a confirmation dialog before permanently deleting any Your History items; set to `false` to skip confirmations |
+| `maintenanceButler.showDescriptions` | `true` | Show description text under each item in the Clean panel |
 
 ---
 

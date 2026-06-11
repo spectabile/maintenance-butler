@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.7.8] — 2026-06-11
+
+### Fixed
+- Status bar bow-tie icon now renders at the correct size — regenerated using IcoMoon Classic with a fill-outline SVG; switched font format from woff2 to woff
+
 ## [1.7.2] — 2026-06-11
 
 ### Changed
