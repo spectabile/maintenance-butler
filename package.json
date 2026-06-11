@@ -2,7 +2,7 @@
   "name": "maintenance-butler",
   "displayName": "Maintenance Butler",
   "description": "Reclaim disk space by cleaning VS Code caches, logs, old extension versions, and workspace history",
-  "version": "1.6.7",
+  "version": "1.7.0",
   "publisher": "spectabile",
   "license": "MIT",
   "engines": {
@@ -16,6 +16,7 @@
     "url": "https://github.com/spectabile/maintenance-butler"
   },
   "activationEvents": [
+    "onStartupFinished",
     "onCommand:maintenanceButler.clean",
     "onCommand:maintenanceButler.showDiskUsage"
   ],
@@ -126,10 +127,15 @@
             "minimum": 1,
             "description": "Local History entries older than this many days will be deleted when cleanHistory is enabled."
           },
-          "maintenanceButler.dryRun": {
+          "maintenanceButler.confirmPermanentDelete": {
             "type": "boolean",
-            "default": false,
-            "description": "Dry run mode — reports what would be deleted without actually deleting anything."
+            "default": true,
+            "description": "Show a confirmation dialog before permanently deleting any Your History items (Timeline History, workspace storage). Set to false to skip confirmations."
+          },
+          "maintenanceButler.showDescriptions": {
+            "type": "boolean",
+            "default": true,
+            "description": "Show description text under each item in the Clean panel."
           }
         }
       }

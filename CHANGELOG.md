@@ -4,6 +4,16 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-06-11
+
+### Added
+- **Status bar indicator** — shows total cleanable size (e.g. `🧹 1.2 GB`) in the status bar on startup; clicking opens the Clean panel; updates after each clean
+- `confirmPermanentDelete` setting (General, default: true) — gates all permanent-deletion confirmation dialogs; set to `false` to skip confirmations for power users; now also covers Orphaned Workspaces (previously unguarded)
+- `showDescriptions` setting (General, default: true) — toggle description text under each item in the Clean panel
+
+### Removed
+- `dryRun` setting — redundant with the existing Clean panel UI
+
 ## [1.6.7] — 2026-06-10
 
 ### Fixed

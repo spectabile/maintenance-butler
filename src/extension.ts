@@ -5,16 +5,43 @@ import { cleanTarget } from './cleaner';
 import { ScanResult } from './types';
 import { showCleanPanel, buildCleanPanelHtml, showDiskUsagePanel } from './webview';
 
+let statusBarItem: vscode.StatusBarItem | undefined;
+
 export function activate(context: vscode.ExtensionContext): void {
+  statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  statusBarItem.command = 'maintenanceButler.clean';
+  statusBarItem.tooltip = 'Maintenance Butler — Click to open cleaner';
+  context.subscriptions.push(statusBarItem);
+
   context.subscriptions.push(
     vscode.commands.registerCommand('maintenanceButler.clean', runClean),
     vscode.commands.registerCommand('maintenanceButler.showDiskUsage', runShowDiskUsage)
   );
+
+  refreshStatusBar();
 }
 
 export function deactivate(): void {}
 
 // ---------------------------------------------------------------------------
+
+async function refreshStatusBar(): Promise<void> {
+  if (!statusBarItem) return;
+  const installs = detectInstalls();
+  if (installs.length === 0) {
+    statusBarItem.hide();
+    return;
+  }
+  statusBarItem.text = '🧹 …';
+  statusBarItem.show();
+  try {
+    const results = await scanAll(installs);
+    const total = results.reduce((sum, r) => sum + r.sizeBytes, 0);
+    statusBarItem.text = total > 0 ? `🧹 ${formatBytes(total)}` : '🧹 Clean';
+  } catch {
+    statusBarItem.hide();
+  }
+}
 
 async function runClean(): Promise<void> {
   const installs = detectInstalls();
@@ -48,27 +75,24 @@ async function runClean(): Promise<void> {
     onClean: async (selection, panel) => {
       const { selected: selectedResults, workspaceStorageMap } = selection;
 
-      // Warn before permanent deletions — panel stays open behind dialog
-      const permanent = selectedResults.filter(r => r.target.risk === 'permanent' && r.target.warning);
-      if (permanent.length > 0) {
-        const lines = permanent.map(r => `• ${r.target.label}: ${r.target.warning}`).join('\n');
-        const choice = await vscode.window.showWarningMessage(
-          `WARNING — Permanent deletion!\n\nThe following cannot be recovered after cleaning:\n\n${lines}\n\nAre you sure you want to continue?`,
-          { modal: true },
-          'Yes, delete permanently'
-        );
-        if (choice !== 'Yes, delete permanently') {
-          panel.webview.postMessage({ type: 'cleanCancelled' });
-          return;
+      const confirmPermanentDelete: boolean = config.get('confirmPermanentDelete', true);
+      if (confirmPermanentDelete) {
+        const permanent = selectedResults.filter(r => r.target.risk === 'permanent');
+        if (permanent.length > 0) {
+          const lines = permanent.map(r => {
+            const note = r.target.warning ?? 'Permanently deleted — cannot be recovered.';
+            return `• ${r.target.label}: ${note}`;
+          }).join('\n');
+          const choice = await vscode.window.showWarningMessage(
+            `WARNING — Permanent deletion!\n\nThe following cannot be recovered after cleaning:\n\n${lines}\n\nAre you sure you want to continue?`,
+            { modal: true },
+            'Yes, delete permanently'
+          );
+          if (choice !== 'Yes, delete permanently') {
+            panel.webview.postMessage({ type: 'cleanCancelled' });
+            return;
+          }
         }
-      }
-
-      // Dry run
-      const dryRun: boolean = config.get('dryRun', false);
-      if (dryRun) {
-        const total = selectedResults.reduce((sum, r) => sum + r.sizeBytes, 0);
-        panel.webview.postMessage({ type: 'cleanDone', bytesFreed: total, errors: [], dryRun: true });
-        return;
       }
 
       panel.webview.postMessage({ type: 'cleanStart' });
@@ -89,6 +113,7 @@ async function runClean(): Promise<void> {
       }
 
       panel.webview.postMessage({ type: 'cleanDone', bytesFreed: totalFreed, errors: allErrors });
+      refreshStatusBar();
     },
 
     onRescan: async (panel, rememberedState) => {

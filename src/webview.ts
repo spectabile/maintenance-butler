@@ -100,7 +100,8 @@ export function buildCleanPanelHtml(
     }
     return item;
   });
-  return buildHtml(serialized, totalBytes, nonce, rememberedState?.wsChecked);
+  const showDescriptions: boolean = config.get('showDescriptions', true);
+  return buildHtml(serialized, totalBytes, nonce, rememberedState?.wsChecked, showDescriptions);
 }
 
 // ── Disk Usage Panel ──────────────────────────────────────────────────────
@@ -237,10 +238,11 @@ function fmtBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
-function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string, rememberedWsChecked?: Record<string, string[]>): string {
+function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string, rememberedWsChecked?: Record<string, string[]>, showDescriptions = true): string {
   const itemsJson = JSON.stringify(items);
   const rememberedWsJson = JSON.stringify(rememberedWsChecked ?? null);
   const totalStr = fmtBytes(totalBytes);
+  const showDescriptionsJs = showDescriptions ? 'true' : 'false';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -525,6 +527,7 @@ body {
   const vscode = acquireVsCodeApi();
   const ITEMS = ${itemsJson};
   const REMEMBERED_WS = ${rememberedWsJson};
+  const SHOW_DESCRIPTIONS = ${showDescriptionsJs};
 
   // ── State ──────────────────────────────────────────────────────────────────
   const checked = new Set();      // Set<itemKey>
@@ -649,11 +652,13 @@ body {
       var emptyName = document.createElement('div');
       emptyName.className = 'item-name';
       emptyName.textContent = item.label;
-      var emptyDetail = document.createElement('div');
-      emptyDetail.className = 'item-detail';
-      emptyDetail.textContent = 'No items, nothing to clean';
       emptyMeta.appendChild(emptyName);
-      emptyMeta.appendChild(emptyDetail);
+      if (SHOW_DESCRIPTIONS) {
+        var emptyDetail = document.createElement('div');
+        emptyDetail.className = 'item-detail';
+        emptyDetail.textContent = 'No items, nothing to clean';
+        emptyMeta.appendChild(emptyDetail);
+      }
       emptyRow.appendChild(spacer);
       emptyRow.appendChild(emptyMeta);
       content.appendChild(emptyRow);
@@ -675,12 +680,13 @@ body {
     nameEl.className = 'item-name';
     nameEl.textContent = item.label;
 
-    var detailEl = document.createElement('div');
-    detailEl.className = 'item-detail';
-    detailEl.innerHTML = item.detail;
-
     meta.appendChild(nameEl);
-    meta.appendChild(detailEl);
+    if (SHOW_DESCRIPTIONS) {
+      var detailEl = document.createElement('div');
+      detailEl.className = 'item-detail';
+      detailEl.innerHTML = item.detail;
+      meta.appendChild(detailEl);
+    }
 
     var badge = document.createElement('span');
     badge.className = 'item-badge';
@@ -845,11 +851,11 @@ body {
       cbtn.disabled = true;
       cbtn.style.opacity = '0.4';
     } else if (msg.type === 'cleanDone') {
-      showResults(msg.bytesFreed, msg.errors, msg.dryRun);
+      showResults(msg.bytesFreed, msg.errors);
     }
   });
 
-  function showResults(bytesFreed, errors, dryRun) {
+  function showResults(bytesFreed, errors) {
     var contentEl = document.getElementById('content');
     contentEl.innerHTML = '';
     var inner = document.createElement('div');
@@ -860,7 +866,7 @@ body {
     icon.textContent = (errors && errors.length > 0) ? '⚠' : '✓';
     var titleEl = document.createElement('div');
     titleEl.style.cssText = 'font-size:1.4em;font-weight:600;';
-    titleEl.textContent = dryRun ? 'Dry Run — would free ' + fmtBytes(bytesFreed) : 'Freed ' + fmtBytes(bytesFreed);
+    titleEl.textContent = 'Freed ' + fmtBytes(bytesFreed);
     inner.appendChild(icon);
     inner.appendChild(titleEl);
     if (errors && errors.length > 0) {
