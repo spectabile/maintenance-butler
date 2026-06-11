@@ -8,3 +8,5 @@ tsconfig.json
 !out/**
 node_modules/**
 _bak/**
+images/font-icons/maintenance-butler.icomoon.json
+images/font-icons/svg/**

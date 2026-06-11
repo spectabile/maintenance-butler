@@ -2,7 +2,7 @@
   "name": "maintenance-butler",
   "displayName": "Maintenance Butler",
   "description": "Reclaim disk space by cleaning VS Code caches, logs, old extension versions, and workspace history",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "publisher": "spectabile",
   "license": "MIT",
   "engines": {
@@ -32,6 +32,15 @@
         "title": "Maintenance Butler: Show Disk Usage"
       }
     ],
+    "icons": {
+      "maintenance-butler-icon": {
+        "description": "Maintenance Butler bow-tie icon",
+        "default": {
+          "fontPath": "./images/font-icons/spectabile.woff2",
+          "fontCharacter": "\\E900"
+        }
+      }
+    },
     "configuration": [
       {
         "title": "Caches & Logs",

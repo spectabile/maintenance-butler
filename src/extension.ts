@@ -32,12 +32,12 @@ async function refreshStatusBar(): Promise<void> {
     statusBarItem.hide();
     return;
   }
-  statusBarItem.text = '🧹 …';
+  statusBarItem.text = '$(maintenance-butler-icon) …';
   statusBarItem.show();
   try {
     const results = await scanAll(installs);
     const total = results.reduce((sum, r) => sum + r.sizeBytes, 0);
-    statusBarItem.text = total > 0 ? `🧹 ${formatBytes(total)}` : '🧹 Clean';
+    statusBarItem.text = total > 0 ? `$(maintenance-butler-icon) ${formatBytes(total)}` : '$(maintenance-butler-icon) Clean';
   } catch {
     statusBarItem.hide();
   }

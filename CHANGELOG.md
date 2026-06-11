@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.7.2] — 2026-06-11
+
+### Changed
+- Status bar now shows the Maintenance Butler bow-tie icon instead of the broom emoji
+
 ## [1.7.1] — 2026-06-11
 
 ### Fixed
