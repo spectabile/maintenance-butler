@@ -33,37 +33,61 @@ export interface CleanPanelHandlers {
   onRescan(panel: vscode.WebviewPanel, rememberedState?: RememberedState): Promise<void>;
 }
 
+let activeCleanPanel: vscode.WebviewPanel | undefined;
+let activeCleanMsgDisposable: vscode.Disposable | undefined;
+let activeDiskUsagePanel: vscode.WebviewPanel | undefined;
+
+function registerCleanPanelHandler(
+  panel: vscode.WebviewPanel,
+  results: ScanResult[],
+  handlers: CleanPanelHandlers
+): vscode.Disposable {
+  return panel.webview.onDidReceiveMessage(async msg => {
+    if (msg.type === 'clean') {
+      const keySet = new Set<string>(msg.selected as string[]);
+      const selected = results.filter(r => keySet.has(`${r.target.id}:${r.install.name}`));
+      await handlers.onClean({ selected, workspaceStorageMap: msg.workspaceStorageMap }, panel);
+    } else if (msg.type === 'cancel' || msg.type === 'close') {
+      panel.dispose();
+    } else if (msg.type === 'rescan') {
+      const remembered: RememberedState | undefined = msg.rememberedChecked
+        ? { checked: msg.rememberedChecked as string[], wsChecked: (msg.rememberedWsChecked ?? {}) as Record<string, string[]> }
+        : undefined;
+      await handlers.onRescan(panel, remembered);
+    }
+  });
+}
+
 export async function showCleanPanel(
   results: ScanResult[],
   config: vscode.WorkspaceConfiguration,
   multiInstall: boolean,
   handlers: CleanPanelHandlers
 ): Promise<void> {
+  if (activeCleanPanel) {
+    activeCleanMsgDisposable?.dispose();
+    activeCleanPanel.webview.html = buildCleanPanelHtml(results, config, multiInstall);
+    activeCleanPanel.reveal(vscode.ViewColumn.One);
+    activeCleanMsgDisposable = registerCleanPanelHandler(activeCleanPanel, results, handlers);
+    return;
+  }
+
   const panel = vscode.window.createWebviewPanel(
     'maintenanceButlerClean',
     'Maintenance Butler — Clean',
     vscode.ViewColumn.One,
     { enableScripts: true }
   );
-
   panel.webview.html = buildCleanPanelHtml(results, config, multiInstall);
+  activeCleanPanel = panel;
+  activeCleanMsgDisposable = registerCleanPanelHandler(panel, results, handlers);
 
   return new Promise<void>(resolve => {
-    panel.webview.onDidReceiveMessage(async msg => {
-      if (msg.type === 'clean') {
-        const keySet = new Set<string>(msg.selected as string[]);
-        const selected = results.filter(r => keySet.has(`${r.target.id}:${r.install.name}`));
-        await handlers.onClean({ selected, workspaceStorageMap: msg.workspaceStorageMap }, panel);
-      } else if (msg.type === 'cancel' || msg.type === 'close') {
-        panel.dispose();
-      } else if (msg.type === 'rescan') {
-        const remembered: RememberedState | undefined = msg.rememberedChecked
-          ? { checked: msg.rememberedChecked as string[], wsChecked: (msg.rememberedWsChecked ?? {}) as Record<string, string[]> }
-          : undefined;
-        await handlers.onRescan(panel, remembered);
-      }
+    panel.onDidDispose(() => {
+      activeCleanPanel = undefined;
+      activeCleanMsgDisposable = undefined;
+      resolve();
     });
-    panel.onDidDispose(() => resolve());
   });
 }
 
@@ -107,6 +131,12 @@ export function buildCleanPanelHtml(
 // ── Disk Usage Panel ──────────────────────────────────────────────────────
 
 export function showDiskUsagePanel(results: ScanResult[], installs: VSCodeInstall[]): void {
+  if (activeDiskUsagePanel) {
+    activeDiskUsagePanel.webview.html = buildDiskUsageHtml(results, installs);
+    activeDiskUsagePanel.reveal(vscode.ViewColumn.One);
+    return;
+  }
+
   const panel = vscode.window.createWebviewPanel(
     'maintenanceButlerDiskUsage',
     'Maintenance Butler — Disk Usage',
@@ -114,6 +144,8 @@ export function showDiskUsagePanel(results: ScanResult[], installs: VSCodeInstal
     { enableScripts: false }
   );
   panel.webview.html = buildDiskUsageHtml(results, installs);
+  activeDiskUsagePanel = panel;
+  panel.onDidDispose(() => { activeDiskUsagePanel = undefined; });
 }
 
 function buildDiskUsageHtml(results: ScanResult[], installs: VSCodeInstall[]): string {

@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.7.1] — 2026-06-11
+
+### Fixed
+- Clean and Disk Usage panels now reuse the existing tab instead of opening a new one each time — if the panel is already open, it is revealed and its content refreshed with a new scan
+
 ## [1.7.0] — 2026-06-11
 
 ### Added
