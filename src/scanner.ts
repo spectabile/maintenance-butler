@@ -177,8 +177,15 @@ export async function findOrphanedWorkspaceFolders(storagePath: string): Promise
           if (typeof raw === 'string') {
             rawUri = raw;
           } else if (typeof raw === 'object' && raw !== null) {
-            const u = (raw as Record<string, unknown>)['uri'];
-            if (typeof u === 'string') rawUri = u;
+            const obj = raw as Record<string, unknown>;
+            if (typeof obj['uri'] === 'string') {
+              rawUri = obj['uri'];
+            } else if (typeof obj['external'] === 'string') {
+              rawUri = obj['external'];
+            } else if (typeof obj['scheme'] === 'string' && typeof obj['path'] === 'string') {
+              const auth = typeof obj['authority'] === 'string' ? obj['authority'] : '';
+              rawUri = `${obj['scheme']}://${auth}${obj['path']}`;
+            }
           }
           if (!rawUri) return;
 
@@ -234,18 +241,32 @@ export async function findAllWorkspaceEntries(
             const data: Record<string, unknown> = JSON.parse(content);
             const raw = data['folder'] ?? data['configuration'] ?? data['workspace'];
 
-            // URI may be a plain string or a {uri:"..."} object (newer VS Code storage format)
+            // VS Code serializes URIs as plain strings (old) or as vscode.Uri objects
+            // (new). Objects carry the string form in 'external', or can be reconstructed
+            // from 'scheme'+'path'. If no string can be extracted, treat as active/remote
+            // (same as non-file: URIs) rather than orphaned — we simply can't verify it.
             let rawUri: string | null = null;
             if (typeof raw === 'string') {
               rawUri = raw;
             } else if (typeof raw === 'object' && raw !== null) {
-              const u = (raw as Record<string, unknown>)['uri'];
-              if (typeof u === 'string') rawUri = u;
+              const obj = raw as Record<string, unknown>;
+              if (typeof obj['uri'] === 'string') {
+                rawUri = obj['uri'];
+              } else if (typeof obj['external'] === 'string') {
+                rawUri = obj['external'];
+              } else if (typeof obj['scheme'] === 'string' && typeof obj['path'] === 'string') {
+                const auth = typeof obj['authority'] === 'string' ? obj['authority'] : '';
+                rawUri = `${obj['scheme']}://${auth}${obj['path']}`;
+              }
             }
 
-            if (!rawUri) {
+            if (!raw) {
               projectPath = '(empty workspace.json)';
               isOrphaned = true;
+            } else if (!rawUri) {
+              // Object URI in unrecognized format — cannot verify, treat as active
+              projectPath = '(unverifiable workspace)';
+              isOrphaned = false;
             } else {
               const filePath = uriToPath(rawUri);
               if (filePath) {

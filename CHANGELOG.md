@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.6] — 2026-06-12
+
+### Fixed
+- **Orphaned Workspaces incorrectly showing `(empty workspace.json)`** — 1.8.5 only extracted the `uri` property from object-form workspace URIs, missing the `external` and `scheme`+`path` properties that VS Code also uses; entries with those formats were wrongly classified as orphaned; now all three forms are tried, and any entry with workspace data that can't be resolved is kept as active (non-orphaned) rather than silently moved to orphaned
+
 ## [1.8.5] — 2026-06-12
 
 ### Fixed
