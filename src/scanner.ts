@@ -211,20 +211,42 @@ export async function findAllWorkspaceEntries(
         if (!dir.isDirectory()) return;
         const entryPath = path.join(storagePath, dir.name);
         const workspaceJson = path.join(entryPath, 'workspace.json');
+        // Always measure size regardless of workspace.json readability
+        const sizeBytes = await getDirSize(entryPath);
+
+        let projectPath: string;
+        let isOrphaned: boolean;
+
         try {
           const content = await fs.readFile(workspaceJson, 'utf8');
           const data: Record<string, string> = JSON.parse(content);
           const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
-          if (!rawUri) return;
-          const projectPath = uriToPath(rawUri);
-          if (!projectPath) return;
-          if (excludePaths.includes(projectPath.toLowerCase())) return;
-          const isOrphaned = !fsSync.existsSync(projectPath);
-          const sizeBytes = await getDirSize(entryPath);
-          entries.push({ storagePath: entryPath, projectPath, isOrphaned, sizeBytes });
+
+          if (!rawUri) {
+            // workspace.json exists but contains no URI — stale entry
+            projectPath = '(empty workspace.json)';
+            isOrphaned = true;
+          } else {
+            const filePath = uriToPath(rawUri);
+            if (filePath) {
+              // Local file: URI — check if project folder still exists
+              if (excludePaths.includes(filePath.toLowerCase())) return;
+              isOrphaned = !fsSync.existsSync(filePath);
+              projectPath = filePath;
+            } else {
+              // Non-file: URI — remote workspace (WSL, SSH, container, Codespace…)
+              // Cannot verify on-disk existence; assume still valid.
+              projectPath = rawUri;
+              isOrphaned = false;
+            }
+          }
         } catch {
-          // Unreadable workspace.json — skip
+          // workspace.json missing or unreadable — no metadata, treat as orphaned
+          projectPath = '(no workspace data)';
+          isOrphaned = true;
         }
+
+        entries.push({ storagePath: entryPath, projectPath, isOrphaned, sizeBytes });
       })
     );
   } catch {

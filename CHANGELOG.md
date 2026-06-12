@@ -4,6 +4,14 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.3] — 2026-06-12
+
+### Fixed
+- **Workspace storage size bug** — `findAllWorkspaceEntries` previously silently skipped any entry whose `workspace.json` was missing, unreadable, or contained a non-`file:` URI (remote/WSL/SSH/container workspaces); only ~20 parseable local entries were counted out of 618 total, causing wildly understated sizes (19.7 MB shown vs 957 MB actual) and zero orphaned workspaces reported
+- All workspace storage entries are now counted: missing/unreadable `workspace.json` entries are marked orphaned with label `(no workspace data)`; non-`file:` URI entries (remote workspaces) are kept as non-orphaned and display their raw URI
+- `getDirSize` is now called for every entry before attempting `workspace.json` parsing, so no entry is silently dropped from the total
+- Note: **Timeline History showing "No items"** is expected — `historyMaxAgeDays` defaults to 30 days; entries newer than that are not shown
+
 ## [1.8.2] — 2026-06-12
 
 ### Fixed
