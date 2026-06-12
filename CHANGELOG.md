@@ -4,6 +4,12 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.2] — 2026-06-12
+
+### Fixed
+- Light theme card shadow replaced with a subtle outline ring (`0 0 0 1px rgba(128,128,128,0.2)`) — drop shadow was too heavy on white and its edges were clipped by the scroll container
+- Added horizontal padding (`16px`) to `.content` in both panels so the dark-theme drop shadow is never cropped at viewport edges
+
 ## [1.8.1] — 2026-06-12
 
 ### Fixed

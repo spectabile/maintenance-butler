@@ -198,7 +198,10 @@ body {
   font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
   color: var(--vscode-foreground); background: var(--vscode-editor-background);
 }
-body.vscode-light, body.vscode-high-contrast-light { --mb-danger: #8f4500; }
+body.vscode-light, body.vscode-high-contrast-light {
+  --mb-danger: #8f4500;
+  --mb-card-shadow: 0 0 0 1px rgba(128, 128, 128, 0.2);
+}
 body.vscode-high-contrast { --mb-danger: #ffc000; }
 .page-header {
   width: 100%; max-width: 900px; margin: 0 auto;
@@ -208,7 +211,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 .page-title { font-size: 1.2em; font-weight: 600; margin-bottom: 4px; }
 .page-subtitle { font-size: 1em; color: var(--vscode-descriptionForeground); }
 .content {
-  flex: 1; overflow-y: auto; padding: 16px 0 24px;
+  flex: 1; overflow-y: auto; padding: 16px 16px 24px;
   display: flex; flex-direction: column; align-items: center;
 }
 .content-inner { width: 100%; max-width: 900px; border-radius: .8rem; background-color: var(--mb-card-bg); box-shadow: var(--mb-card-shadow); }
@@ -311,7 +314,10 @@ body {
   background: var(--vscode-editor-background);
 }
 
-body.vscode-light, body.vscode-high-contrast-light { --mb-danger: #8f4500; }
+body.vscode-light, body.vscode-high-contrast-light {
+  --mb-danger: #8f4500;
+  --mb-card-shadow: 0 0 0 1px rgba(128, 128, 128, 0.2);
+}
 body.vscode-high-contrast { --mb-danger: #ffc000; }
 
 .page-header {
@@ -344,7 +350,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0 4px;
+  padding: 8px 16px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
