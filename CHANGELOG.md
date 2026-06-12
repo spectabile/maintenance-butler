@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-06-12
+
+### Changed
+- Webview UI now fully adapts to any VS Code theme (dark, light, high-contrast, custom) — card background, danger/warning colors, badges, and success indicator all source from VS Code semantic CSS variables (`--vscode-editorWidget-background`, `--vscode-problemsWarningIcon-foreground`, `--vscode-editorWarning-foreground`, `--vscode-badge-background/foreground`, `--vscode-testing-iconPassed`) instead of hardcoded values; no more separate light/dark palettes
+
 ## [1.7.8] — 2026-06-11
 
 ### Fixed

@@ -188,6 +188,11 @@ function buildDiskUsageHtml(results: ScanResult[], installs: VSCodeInstall[]): s
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --mb-card-bg: var(--vscode-editorWidget-background, #1c2c35);
+  --mb-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --mb-danger: var(--vscode-problemsWarningIcon-foreground, #f1934c);
+}
 body {
   display: flex; flex-direction: column; height: 100vh;
   font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
@@ -205,7 +210,7 @@ body {
   flex: 1; overflow-y: auto; padding: 16px 0 24px;
   display: flex; flex-direction: column; align-items: center;
 }
-.content-inner { width: 100%; max-width: 900px; border-radius: .8rem; background-color: #1c2c35; }
+.content-inner { width: 100%; max-width: 900px; border-radius: .8rem; background-color: var(--mb-card-bg); box-shadow: var(--mb-card-shadow); }
 .install-block { margin-bottom: 4px; }
 .install-header {
   padding: 14px 20px; font-weight: 600;
@@ -219,10 +224,10 @@ body {
   padding: 7px 20px;
   border-bottom: 1px solid rgba(128,128,128,0.08);
 }
-.item-row.permanent .item-name { color: #f1934c; }
+.item-row.permanent .item-name { color: var(--mb-danger); }
 .item-meta { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
 .item-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.risk-tag { flex-shrink: 0; font-size: 0.78em; color: #f1934c; opacity: 0.75; }
+.risk-tag { flex-shrink: 0; font-size: 0.78em; color: var(--mb-danger); opacity: 0.75; }
 .item-right {
   flex-shrink: 0; display: flex; align-items: center; gap: 8px;
   font-size: 0.9em; color: var(--vscode-descriptionForeground); white-space: nowrap;
@@ -283,6 +288,15 @@ function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string, r
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --mb-card-bg: var(--vscode-editorWidget-background, #1c2c35);
+  --mb-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  --mb-danger: var(--vscode-problemsWarningIcon-foreground, #f1934c);
+  --mb-orphaned: var(--vscode-editorWarning-foreground, #ba8749);
+  --mb-badge-bg: var(--vscode-badge-background, rgba(0, 0, 0, 0.40));
+  --mb-badge-fg: var(--vscode-badge-foreground, #afafaf);
+  --mb-success: var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen, #4ec9b0));
+}
 
 body {
   display: flex;
@@ -294,8 +308,6 @@ body {
   font-size: var(--vscode-font-size);
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
-  --vscode-badge-background: rgba(0, 0, 0, 0.5);
-  --vscode-badge-foreground: #afafaf;
 }
 
 .page-header {
@@ -339,7 +351,8 @@ body {
   width: 100%;
   max-width: 900px;
   border-radius: .8rem;
-  background-color: #1c2c35;
+  background-color: var(--mb-card-bg);
+  box-shadow: var(--mb-card-shadow);
 }
 
 .section-label {
@@ -357,7 +370,7 @@ body {
 }
 
 .section-label.danger {
-  color: #f1934c;
+  color: var(--mb-danger);
   margin-top: 30px;
 }
 
@@ -367,15 +380,15 @@ body {
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 10px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  background: var(--mb-badge-bg);
+  color: var(--mb-badge-fg);
   white-space: nowrap;
   text-transform: none;
   letter-spacing: 0;
 }
 
 .section-badge.danger {
-  color: #f1934c;
+  color: var(--mb-danger);
 }
 
 .item-row {
@@ -421,8 +434,8 @@ body {
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 10px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-badge-foreground);
+  background: var(--mb-badge-bg);
+  color: var(--mb-badge-fg);
   white-space: nowrap;
 }
 
@@ -473,7 +486,7 @@ body {
   white-space: nowrap;
 }
 
-.ws-entry-path.orphaned { color: #ba8749; }
+.ws-entry-path.orphaned { color: var(--mb-orphaned); }
 
 .ws-entry-size {
   flex-shrink: 0;
@@ -894,7 +907,7 @@ body {
     inner.className = 'content-inner';
     inner.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;min-height:200px;';
     var icon = document.createElement('div');
-    icon.style.cssText = 'font-size:2.5em;color:' + (errors && errors.length > 0 ? '#f1934c' : 'var(--vscode-terminal-ansiGreen, #4ec9b0)') + ';';
+    icon.style.cssText = 'font-size:2.5em;color:var(' + (errors && errors.length > 0 ? '--mb-danger' : '--mb-success') + ');';
     icon.textContent = (errors && errors.length > 0) ? '⚠' : '✓';
     var titleEl = document.createElement('div');
     titleEl.style.cssText = 'font-size:1.4em;font-weight:600;';
