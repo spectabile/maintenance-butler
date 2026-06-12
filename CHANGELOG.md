@@ -4,6 +4,14 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.1] — 2026-06-12
+
+### Fixed
+- Removed `border-bottom` from page header and `border-top` from footer in both panels — layout now relies on card shadow alone for separation
+- `content-inner` card shadow strengthened (`0 0 0 1px` outline ring + `0 6px 24px` drop) so the card visually floats without needing border dividers
+- `--mb-danger` color (section labels and badges) replaced with theme-brightness-aware hardcoded values — no longer sourced from `--vscode-problemsWarningIcon-foreground` which was washed out in Spectabile Material Dark and most light themes; dark themes use `#d4920a`, light themes `#8f4500`, high-contrast `#ffc000`
+- Badge text color (`--mb-badge-fg`) switched from `--vscode-badge-foreground` to `--vscode-foreground`; badge background changed to neutral `rgba(128,128,128,0.15)` — eliminates washed-out text in themes that set `--vscode-badge-foreground` to a dim value
+
 ## [1.8.0] — 2026-06-12
 
 ### Changed

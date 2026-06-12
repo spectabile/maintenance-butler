@@ -190,18 +190,19 @@ function buildDiskUsageHtml(results: ScanResult[], installs: VSCodeInstall[]): s
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --mb-card-bg: var(--vscode-editorWidget-background, #1c2c35);
-  --mb-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  --mb-danger: var(--vscode-problemsWarningIcon-foreground, #f1934c);
+  --mb-card-shadow: 0 0 0 1px rgba(128, 128, 128, 0.12), 0 6px 24px rgba(0, 0, 0, 0.28);
+  --mb-danger: #d4920a;
 }
 body {
   display: flex; flex-direction: column; height: 100vh;
   font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
   color: var(--vscode-foreground); background: var(--vscode-editor-background);
 }
+body.vscode-light, body.vscode-high-contrast-light { --mb-danger: #8f4500; }
+body.vscode-high-contrast { --mb-danger: #ffc000; }
 .page-header {
   width: 100%; max-width: 900px; margin: 0 auto;
   display: flex; justify-content: center; flex-shrink: 0;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
 }
 .page-header-inner { text-align: center; padding: 20px 20px 16px; }
 .page-title { font-size: 1.2em; font-weight: 600; margin-bottom: 4px; }
@@ -290,11 +291,11 @@ function buildHtml(items: SerializedItem[], totalBytes: number, nonce: string, r
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
   --mb-card-bg: var(--vscode-editorWidget-background, #1c2c35);
-  --mb-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  --mb-danger: var(--vscode-problemsWarningIcon-foreground, #f1934c);
+  --mb-card-shadow: 0 0 0 1px rgba(128, 128, 128, 0.12), 0 6px 24px rgba(0, 0, 0, 0.28);
+  --mb-danger: #d4920a;
   --mb-orphaned: var(--vscode-editorWarning-foreground, #ba8749);
-  --mb-badge-bg: var(--vscode-badge-background, rgba(0, 0, 0, 0.40));
-  --mb-badge-fg: var(--vscode-badge-foreground, #afafaf);
+  --mb-badge-bg: rgba(128, 128, 128, 0.15);
+  --mb-badge-fg: var(--vscode-foreground);
   --mb-success: var(--vscode-testing-iconPassed, var(--vscode-terminal-ansiGreen, #4ec9b0));
 }
 
@@ -310,13 +311,15 @@ body {
   background: var(--vscode-editor-background);
 }
 
+body.vscode-light, body.vscode-high-contrast-light { --mb-danger: #8f4500; }
+body.vscode-high-contrast { --mb-danger: #ffc000; }
+
 .page-header {
   width: 100%;
   max-width: 900px;
   margin: 0 auto;
   display: flex;
   justify-content: center;
-  border-bottom: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
   flex-shrink: 0;
 }
 
@@ -508,7 +511,6 @@ body {
   margin: 0 auto;
   display: flex;
   justify-content: center;
-  border-top: 1px solid var(--vscode-panel-border, var(--vscode-editorGroup-border));
   flex-shrink: 0;
 }
 
