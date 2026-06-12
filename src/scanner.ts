@@ -205,50 +205,56 @@ export async function findAllWorkspaceEntries(
 ): Promise<WorkspaceEntry[]> {
   const entries: WorkspaceEntry[] = [];
   try {
-    const dirs = await fs.readdir(storagePath, { withFileTypes: true });
-    await Promise.all(
-      dirs.map(async (dir) => {
-        if (!dir.isDirectory()) return;
-        const entryPath = path.join(storagePath, dir.name);
-        const workspaceJson = path.join(entryPath, 'workspace.json');
-        // Always measure size regardless of workspace.json readability
-        const sizeBytes = await getDirSize(entryPath);
+    const dirs = (await fs.readdir(storagePath, { withFileTypes: true }))
+      .filter(d => d.isDirectory());
 
-        let projectPath: string;
-        let isOrphaned: boolean;
+    // Process in batches: launching 600+ concurrent getDirSize calls overwhelms
+    // the Windows I/O queue, causing most to silently return 0.
+    const BATCH = 32;
+    for (let i = 0; i < dirs.length; i += BATCH) {
+      await Promise.all(
+        dirs.slice(i, i + BATCH).map(async (dir) => {
+          const entryPath = path.join(storagePath, dir.name);
+          const workspaceJson = path.join(entryPath, 'workspace.json');
+          // Always measure size regardless of workspace.json readability
+          const sizeBytes = await getDirSize(entryPath);
 
-        try {
-          const content = await fs.readFile(workspaceJson, 'utf8');
-          const data: Record<string, string> = JSON.parse(content);
-          const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
+          let projectPath: string;
+          let isOrphaned: boolean;
 
-          if (!rawUri) {
-            // workspace.json exists but contains no URI — stale entry
-            projectPath = '(empty workspace.json)';
-            isOrphaned = true;
-          } else {
-            const filePath = uriToPath(rawUri);
-            if (filePath) {
-              // Local file: URI — check if project folder still exists
-              if (excludePaths.includes(filePath.toLowerCase())) return;
-              isOrphaned = !fsSync.existsSync(filePath);
-              projectPath = filePath;
+          try {
+            const content = await fs.readFile(workspaceJson, 'utf8');
+            const data: Record<string, string> = JSON.parse(content);
+            const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
+
+            if (!rawUri) {
+              // workspace.json exists but contains no URI — stale entry
+              projectPath = '(empty workspace.json)';
+              isOrphaned = true;
             } else {
-              // Non-file: URI — remote workspace (WSL, SSH, container, Codespace…)
-              // Cannot verify on-disk existence; assume still valid.
-              projectPath = rawUri;
-              isOrphaned = false;
+              const filePath = uriToPath(rawUri);
+              if (filePath) {
+                // Local file: URI — check if project folder still exists
+                if (excludePaths.includes(filePath.toLowerCase())) return;
+                isOrphaned = !fsSync.existsSync(filePath);
+                projectPath = filePath;
+              } else {
+                // Non-file: URI — remote workspace (WSL, SSH, container, Codespace…)
+                // Cannot verify on-disk existence; assume still valid.
+                projectPath = rawUri;
+                isOrphaned = false;
+              }
             }
+          } catch {
+            // workspace.json missing or unreadable — no metadata, treat as orphaned
+            projectPath = '(no workspace data)';
+            isOrphaned = true;
           }
-        } catch {
-          // workspace.json missing or unreadable — no metadata, treat as orphaned
-          projectPath = '(no workspace data)';
-          isOrphaned = true;
-        }
 
-        entries.push({ storagePath: entryPath, projectPath, isOrphaned, sizeBytes });
-      })
-    );
+          entries.push({ storagePath: entryPath, projectPath, isOrphaned, sizeBytes });
+        })
+      );
+    }
   } catch {
     // ignore
   }

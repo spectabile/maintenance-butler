@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.4] — 2026-06-12
+
+### Fixed
+- Workspace storage size still reported incorrectly after 1.8.3 — launching 600+ concurrent `getDirSize` calls via `Promise.all` overwhelmed the Windows I/O queue, causing most calls to silently return 0 via `catch { return 0 }`; switched to batched processing (32 entries at a time) so file system reads complete correctly
+
 ## [1.8.3] — 2026-06-12
 
 ### Fixed
