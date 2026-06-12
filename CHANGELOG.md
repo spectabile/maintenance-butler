@@ -4,6 +4,11 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.8.5] — 2026-06-12
+
+### Fixed
+- **Workspace labels showing `[object Object]`** — newer VS Code versions store the workspace URI as a `{uri: "..."}` object in `workspace.json` instead of a plain string; the parser now handles both formats, extracting the `uri` property when needed
+
 ## [1.8.4] — 2026-06-12
 
 ### Fixed

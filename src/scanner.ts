@@ -170,11 +170,18 @@ export async function findOrphanedWorkspaceFolders(storagePath: string): Promise
         const workspaceJson = path.join(entryPath, 'workspace.json');
         try {
           const content = await fs.readFile(workspaceJson, 'utf8');
-          const data: Record<string, string> = JSON.parse(content);
-          const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
+          const data: Record<string, unknown> = JSON.parse(content);
+          const raw = data['folder'] ?? data['configuration'] ?? data['workspace'];
+
+          let rawUri: string | null = null;
+          if (typeof raw === 'string') {
+            rawUri = raw;
+          } else if (typeof raw === 'object' && raw !== null) {
+            const u = (raw as Record<string, unknown>)['uri'];
+            if (typeof u === 'string') rawUri = u;
+          }
           if (!rawUri) return;
 
-          // Convert file URI to filesystem path
           const normalized = uriToPath(rawUri);
           if (normalized && !fsSync.existsSync(normalized)) {
             orphans.push(entryPath);
@@ -224,29 +231,34 @@ export async function findAllWorkspaceEntries(
 
           try {
             const content = await fs.readFile(workspaceJson, 'utf8');
-            const data: Record<string, string> = JSON.parse(content);
-            const rawUri = data['folder'] ?? data['configuration'] ?? data['workspace'];
+            const data: Record<string, unknown> = JSON.parse(content);
+            const raw = data['folder'] ?? data['configuration'] ?? data['workspace'];
+
+            // URI may be a plain string or a {uri:"..."} object (newer VS Code storage format)
+            let rawUri: string | null = null;
+            if (typeof raw === 'string') {
+              rawUri = raw;
+            } else if (typeof raw === 'object' && raw !== null) {
+              const u = (raw as Record<string, unknown>)['uri'];
+              if (typeof u === 'string') rawUri = u;
+            }
 
             if (!rawUri) {
-              // workspace.json exists but contains no URI — stale entry
               projectPath = '(empty workspace.json)';
               isOrphaned = true;
             } else {
               const filePath = uriToPath(rawUri);
               if (filePath) {
-                // Local file: URI — check if project folder still exists
                 if (excludePaths.includes(filePath.toLowerCase())) return;
                 isOrphaned = !fsSync.existsSync(filePath);
                 projectPath = filePath;
               } else {
                 // Non-file: URI — remote workspace (WSL, SSH, container, Codespace…)
-                // Cannot verify on-disk existence; assume still valid.
                 projectPath = rawUri;
                 isOrphaned = false;
               }
             }
           } catch {
-            // workspace.json missing or unreadable — no metadata, treat as orphaned
             projectPath = '(no workspace data)';
             isOrphaned = true;
           }
