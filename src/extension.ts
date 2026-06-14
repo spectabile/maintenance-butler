@@ -18,7 +18,20 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('maintenanceButler.showDiskUsage', runShowDiskUsage)
   );
 
-  refreshStatusBar();
+  if (vscode.workspace.getConfiguration('maintenanceButler').get<boolean>('showStatusBar', true)) {
+    refreshStatusBar();
+  }
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (!e.affectsConfiguration('maintenanceButler.showStatusBar')) return;
+      if (vscode.workspace.getConfiguration('maintenanceButler').get<boolean>('showStatusBar', true)) {
+        refreshStatusBar();
+      } else {
+        statusBarItem?.hide();
+      }
+    })
+  );
 }
 
 export function deactivate(): void {}
@@ -32,12 +45,12 @@ async function refreshStatusBar(): Promise<void> {
     statusBarItem.hide();
     return;
   }
-  statusBarItem.text = '$(maintenance-butler-icon) …';
+  statusBarItem.text = '$(maintenance-butler-icon) …';
   statusBarItem.show();
   try {
     const results = await scanAll(installs);
     const total = results.reduce((sum, r) => sum + r.sizeBytes, 0);
-    statusBarItem.text = total > 0 ? `$(maintenance-butler-icon) ${formatBytes(total)}` : '$(maintenance-butler-icon) Clean';
+    statusBarItem.text = total > 0 ? `$(maintenance-butler-icon) ${formatBytes(total)}` : '$(maintenance-butler-icon) Clean';
   } catch {
     statusBarItem.hide();
   }
@@ -77,7 +90,7 @@ async function runClean(): Promise<void> {
 
       const confirmPermanentDelete: boolean = config.get('confirmPermanentDelete', true);
       if (confirmPermanentDelete) {
-        const permanent = selectedResults.filter(r => r.target.risk === 'permanent');
+        const permanent = selectedResults.filter(r => r.target.risk === 'permanent' && !!r.target.warning);
         if (permanent.length > 0) {
           const lines = permanent.map(r => {
             const note = r.target.warning ?? 'Permanently deleted — cannot be recovered.';

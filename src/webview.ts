@@ -562,7 +562,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 <div class="page-header">
   <div class="page-header-inner">
     <div class="page-title">Maintenance Butler — Clean</div>
-    <div class="page-subtitle">${totalStr} available</div>
+    <div class="page-subtitle">${totalStr} to reclaim</div>
   </div>
 </div>
 
@@ -611,6 +611,15 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
     return (b / 1073741824).toFixed(2) + ' GB';
   }
 
+  function refreshSectionCb(risk) {
+    var info = sectionInfo[risk];
+    if (!info || !info.saCb) return;
+    var arr = info.itemCbs;
+    var n = arr.filter(function(x) { return x.cb.checked; }).length;
+    info.saCb.checked = n > 0 && n === arr.length;
+    info.saCb.indeterminate = n > 0 && n < arr.length;
+  }
+
   function wsSelectedSize(item) {
     var paths = wsChecked.get(item.key);
     if (!paths || paths.size === 0) return 0;
@@ -628,11 +637,14 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         if (!paths || paths.size === 0) return;
         wsMap[item.key] = Array.from(paths);
         totalSize += wsSelectedSize(item);
+        selectedKeys.push(item.key);
+        count += paths.size;
       } else {
+        if (item.sizeBytes === 0 && item.itemCount === 0) return;
         totalSize += item.sizeBytes;
+        selectedKeys.push(item.key);
+        count++;
       }
-      selectedKeys.push(item.key);
-      count++;
     });
     return { selectedKeys: selectedKeys, wsMap: wsMap, totalSize: totalSize, count: count };
   }
@@ -686,10 +698,37 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         : 'Caches & Logs — auto-regenerated, safe to clean';
       var hdrBadge = document.createElement('span');
       hdrBadge.className = 'section-badge' + (item.risk === 'permanent' ? ' danger' : '');
-      hdr.appendChild(hdrText);
+      if (item.risk === 'safe') {
+        var safeAll = ITEMS.filter(function(i) { return i.risk === 'safe' && (i.sizeBytes > 0 || i.itemCount > 0); });
+        var initN = safeAll.filter(function(i) { return checked.has(i.key); }).length;
+        var sectCb = document.createElement('input');
+        sectCb.type = 'checkbox';
+        sectCb.style.cssText = 'width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--vscode-button-background)';
+        sectCb.checked = initN > 0 && initN === safeAll.length;
+        sectCb.indeterminate = initN > 0 && initN < safeAll.length;
+        var hdrLeft = document.createElement('div');
+        hdrLeft.style.cssText = 'display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;flex:1';
+        hdrLeft.appendChild(sectCb);
+        hdrLeft.appendChild(hdrText);
+        hdr.appendChild(hdrLeft);
+        sectionInfo[item.risk] = { badgeEl: hdrBadge, totalBytes: sectionTotal, saCb: sectCb, itemCbs: [] };
+        (function(cb) {
+          function doToggle() {
+            sectionInfo['safe'].itemCbs.forEach(function(x) {
+              x.cb.checked = cb.checked;
+              if (cb.checked) checked.add(x.item.key); else checked.delete(x.item.key);
+            });
+            updateFooter();
+          }
+          cb.addEventListener('change', doToggle);
+          hdrLeft.addEventListener('click', function(e) { if (e.target !== cb) { cb.checked = !cb.checked; doToggle(); } });
+        }(sectCb));
+      } else {
+        hdr.appendChild(hdrText);
+        sectionInfo[item.risk] = { badgeEl: hdrBadge, totalBytes: sectionTotal };
+      }
       hdr.appendChild(hdrBadge);
       content.appendChild(hdr);
-      sectionInfo[item.risk] = { badgeEl: hdrBadge, totalBytes: sectionTotal };
       lastRisk = item.risk;
     }
 
@@ -725,6 +764,9 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = checked.has(item.key);
+    if (sectionInfo[item.risk] && sectionInfo[item.risk].itemCbs) {
+      sectionInfo[item.risk].itemCbs.push({ cb: cb, item: item });
+    }
 
     var meta = document.createElement('div');
     meta.className = 'item-meta';
@@ -772,6 +814,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         if (accordion) accordion.classList.remove('open');
         badge.textContent = '0 B / ' + fmtBytes(item.sizeBytes);
       }
+      refreshSectionCb(item.risk);
       updateFooter();
     }
 

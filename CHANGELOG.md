@@ -4,6 +4,21 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.9.0] — 2026-06-14
+
+### Added
+- **`showStatusBar` setting** (General, default: `true`) — when disabled, the status bar item is hidden and no startup scan is performed; the Clean and Disk Usage commands still work on demand; responds live without a reload
+- **Section-level Select All** — the "Caches & Logs" section header now has a checkbox that selects or deselects all items at once; supports indeterminate state when only some items are checked
+
+### Changed
+- Clean panel header subtitle changed from "X available" to "X to reclaim"
+- Status bar icon updated to `bow-tie-stars-outline` (E903) from the rebuilt IcoMoon font (`font-icons.woff`)
+
+### Fixed
+- **Footer showed "Clean 2 items · 0 B" when nothing was selected** — zero-size items (`Old Extension Versions`, `Obsolete Extensions`) with `defaultEnabled: true` were silently included in the checked Set but render no checkbox; they are now skipped in `computeSelection()` when both `sizeBytes` and `itemCount` are zero
+- **Workspace picker counted as 1 item instead of N** — selecting 7 individual workspaces now correctly shows "Clean 7 items"; the count now uses the number of selected sub-entries (`paths.size`) instead of the parent entry
+- **Permanent deletion warning fired for Orphaned Workspaces** — confirmation dialog now only triggers for items that have a `warning` field in their target definition (`Timeline History`, `Active Workspaces`); Orphaned Workspaces no longer require confirmation since their folders no longer exist on disk
+
 ## [1.8.6] — 2026-06-12
 
 ### Fixed
