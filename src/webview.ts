@@ -411,12 +411,49 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 
 .item-row:hover { background: var(--vscode-list-hoverBackground); }
 
-.item-row input[type="checkbox"] {
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
   flex-shrink: 0;
+  cursor: pointer;
+  border: 1.5px solid rgba(128, 128, 128, 0.55);
+  border-radius: 3px;
+  background: transparent;
+  box-sizing: border-box;
+}
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate {
+  background: var(--vscode-button-background);
+  border-color: var(--vscode-button-background);
+}
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 21%;
+  top: 8%;
+  width: 28%;
+  height: 56%;
+  border: 1.5px solid #fff;
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 15%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 70%;
+  height: 2px;
+  background: #fff;
+  border-radius: 1px;
+}
+
+.item-row input[type="checkbox"] {
   width: 14px;
   height: 14px;
-  cursor: pointer;
-  accent-color: var(--vscode-button-background);
 }
 
 .item-meta { flex: 1; min-width: 0; }
@@ -479,11 +516,8 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 .ws-entry:hover { background: var(--vscode-list-hoverBackground); }
 
 .ws-entry input[type="checkbox"] {
-  flex-shrink: 0;
   width: 12px;
   height: 12px;
-  cursor: pointer;
-  accent-color: var(--vscode-button-background);
 }
 
 .ws-entry-path {
@@ -590,15 +624,11 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
   ITEMS.forEach(function (item) {
     if (item.defaultChecked) checked.add(item.key);
     if (item.isWorkspacePicker && item.workspaceEntries) {
-      if (REMEMBERED_WS && REMEMBERED_WS[item.key]) {
-        wsChecked.set(item.key, new Set(REMEMBERED_WS[item.key]));
-      } else {
-        wsChecked.set(item.key, new Set(
-          item.workspaceEntries
-            .filter(function (e) { return e.isOrphaned; })
-            .map(function (e) { return e.storagePath; })
-        ));
-      }
+      wsChecked.set(item.key,
+        REMEMBERED_WS && REMEMBERED_WS[item.key]
+          ? new Set(REMEMBERED_WS[item.key])
+          : new Set()
+      );
     }
   });
 
@@ -631,7 +661,6 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
   function computeSelection() {
     var selectedKeys = [], wsMap = {}, totalSize = 0, count = 0;
     ITEMS.forEach(function (item) {
-      if (!checked.has(item.key)) return;
       if (item.isWorkspacePicker) {
         var paths = wsChecked.get(item.key);
         if (!paths || paths.size === 0) return;
@@ -640,6 +669,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         selectedKeys.push(item.key);
         count += paths.size;
       } else {
+        if (!checked.has(item.key)) return;
         if (item.sizeBytes === 0 && item.itemCount === 0) return;
         totalSize += item.sizeBytes;
         selectedKeys.push(item.key);
@@ -666,8 +696,11 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
     var sums = {};
     ITEMS.forEach(function(item) {
       if (!sums[item.risk]) sums[item.risk] = 0;
-      if (!checked.has(item.key)) return;
-      sums[item.risk] += item.isWorkspacePicker ? wsSelectedSize(item) : item.sizeBytes;
+      if (item.isWorkspacePicker) {
+        sums[item.risk] += wsSelectedSize(item);
+      } else if (checked.has(item.key)) {
+        sums[item.risk] += item.sizeBytes;
+      }
     });
     Object.keys(sectionInfo).forEach(function(risk) {
       var info = sectionInfo[risk];
@@ -703,7 +736,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         var initN = safeAll.filter(function(i) { return checked.has(i.key); }).length;
         var sectCb = document.createElement('input');
         sectCb.type = 'checkbox';
-        sectCb.style.cssText = 'width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--vscode-button-background)';
+        sectCb.style.cssText = 'width:14px;height:14px;';
         sectCb.checked = initN > 0 && initN === safeAll.length;
         sectCb.indeterminate = initN > 0 && initN < safeAll.length;
         var hdrLeft = document.createElement('div');
@@ -714,6 +747,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
         sectionInfo[item.risk] = { badgeEl: hdrBadge, totalBytes: sectionTotal, saCb: sectCb, itemCbs: [] };
         (function(cb) {
           function doToggle() {
+            cb.indeterminate = false;
             sectionInfo['safe'].itemCbs.forEach(function(x) {
               x.cb.checked = cb.checked;
               if (cb.checked) checked.add(x.item.key); else checked.delete(x.item.key);
@@ -761,13 +795,6 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
     var row = document.createElement('div');
     row.className = 'item-row';
 
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = checked.has(item.key);
-    if (sectionInfo[item.risk] && sectionInfo[item.risk].itemCbs) {
-      sectionInfo[item.risk].itemCbs.push({ cb: cb, item: item });
-    }
-
     var meta = document.createElement('div');
     meta.className = 'item-meta';
 
@@ -785,41 +812,59 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
 
     var badge = document.createElement('span');
     badge.className = 'item-badge';
-    if (item.isWorkspacePicker) {
-      badge.textContent = fmtBytes(checked.has(item.key) ? wsSelectedSize(item) : 0) + ' / ' + fmtBytes(item.sizeBytes);
-    } else {
-      badge.textContent = fmtBytes(checked.has(item.key) ? item.sizeBytes : 0) + ' / ' + fmtBytes(item.sizeBytes);
-    }
 
-    row.appendChild(cb);
-    row.appendChild(meta);
-    row.appendChild(badge);
-    content.appendChild(row);
-
-    // Workspace accordion
-    var accordion = null;
     if (item.isWorkspacePicker) {
-      accordion = buildWsAccordion(item, badge);
+      // Collapse toggle — not a clean candidate itself; sub-entries drive the count
+      var collapseIcon = document.createElement('span');
+      collapseIcon.style.cssText = 'flex-shrink:0;width:14px;text-align:center;font-size:0.75em;color:var(--vscode-descriptionForeground);user-select:none';
+      var wsInitPaths = wsChecked.get(item.key) || new Set();
+      collapseIcon.textContent = wsInitPaths.size > 0 ? '▼' : '▶';
+      badge.textContent = fmtBytes(wsSelectedSize(item)) + ' / ' + fmtBytes(item.sizeBytes);
+      row.appendChild(collapseIcon);
+      row.appendChild(meta);
+      row.appendChild(badge);
+      content.appendChild(row);
+
+      var accordion = buildWsAccordion(item, badge);
       content.appendChild(accordion);
-      if (checked.has(item.key)) accordion.classList.add('open');
-    }
+      if (wsInitPaths.size > 0) accordion.classList.add('open');
 
-    function handleToggle() {
-      if (cb.checked) {
-        checked.add(item.key);
-        if (accordion) accordion.classList.add('open');
-        badge.textContent = (item.isWorkspacePicker ? fmtBytes(wsSelectedSize(item)) : fmtBytes(item.sizeBytes)) + ' / ' + fmtBytes(item.sizeBytes);
-      } else {
-        checked.delete(item.key);
-        if (accordion) accordion.classList.remove('open');
-        badge.textContent = '0 B / ' + fmtBytes(item.sizeBytes);
+      row.addEventListener('click', function () {
+        if (accordion.classList.contains('open')) {
+          accordion.classList.remove('open');
+          collapseIcon.textContent = '▶';
+        } else {
+          accordion.classList.add('open');
+          collapseIcon.textContent = '▼';
+        }
+      });
+    } else {
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = checked.has(item.key);
+      if (sectionInfo[item.risk] && sectionInfo[item.risk].itemCbs) {
+        sectionInfo[item.risk].itemCbs.push({ cb: cb, item: item });
       }
-      refreshSectionCb(item.risk);
-      updateFooter();
-    }
+      badge.textContent = fmtBytes(checked.has(item.key) ? item.sizeBytes : 0) + ' / ' + fmtBytes(item.sizeBytes);
+      row.appendChild(cb);
+      row.appendChild(meta);
+      row.appendChild(badge);
+      content.appendChild(row);
 
-    row.addEventListener('click', function (e) { if (e.target !== cb) { cb.checked = !cb.checked; handleToggle(); } });
-    cb.addEventListener('change', handleToggle);
+      var handleToggle = function () {
+        if (cb.checked) {
+          checked.add(item.key);
+          badge.textContent = fmtBytes(item.sizeBytes) + ' / ' + fmtBytes(item.sizeBytes);
+        } else {
+          checked.delete(item.key);
+          badge.textContent = '0 B / ' + fmtBytes(item.sizeBytes);
+        }
+        refreshSectionCb(item.risk);
+        updateFooter();
+      };
+      row.addEventListener('click', function (e) { if (e.target !== cb) { cb.checked = !cb.checked; handleToggle(); } });
+      cb.addEventListener('change', handleToggle);
+    }
   });
 
   // ── Workspace accordion builder ────────────────────────────────────────────
@@ -900,6 +945,7 @@ body.vscode-high-contrast { --mb-danger: #ffc000; }
     entries.forEach(addEntry);
 
     function selectAllToggle() {
+      saCb.indeterminate = false;
       var newSet = new Set();
       if (saCb.checked) entries.forEach(function (e) { newSet.add(e.storagePath); });
       wsChecked.set(item.key, newSet);

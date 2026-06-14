@@ -4,6 +4,27 @@ All notable changes to Maintenance Butler will be documented here.
 
 ## [Unreleased]
 
+## [1.9.3] — 2026-06-14
+
+### Fixed
+- **Indeterminate checkbox mark washed out / invisible** — replaced the browser's native checkbox rendering (`accent-color`) with a fully custom CSS implementation (`appearance: none` + `::after` pseudo-elements); all three states (unchecked/checked/indeterminate) now render consistently: empty border when unchecked, solid `--vscode-button-background` fill when checked or partially selected, white checkmark or white dash on top
+
+## [1.9.2] — 2026-06-14
+
+### Fixed
+- **Select All / section checkbox stuck in indeterminate (`—`) state** — clicking the label area (div, not the checkbox itself) programmatically flips `checked` but the browser does not clear `indeterminate` in that path; `doToggle()` and `selectAllToggle()` now explicitly reset `indeterminate = false` so the checkbox always reflects the true all-checked or all-unchecked state after a toggle
+- **Faded `—` when nothing is selected** — same root cause; `indeterminate` could remain `true` even when zero sub-entries were selected, showing a washed-out dash instead of a clean empty checkbox
+
+## [1.9.1] — 2026-06-14
+
+### Changed
+- **Workspace pickers (Orphaned / Active Workspaces) parent row** replaced the misleading checkbox with a `▶`/`▼` collapse toggle — the parent row is no longer treated as a clean candidate; only individual sub-workspace checkboxes count
+
+### Fixed
+- **Footer count wrong when sub-entries are selected** — selecting individual workspaces inside an accordion now immediately increments the footer count; previously the parent checkbox had to be checked first before any sub-entries registered
+- **Phantom "Clean 2 items · 0 B" on fresh load** — workspace picker parent rows were being counted via the `checked` set even when no sub-entries were selected; `computeSelection()` now counts workspace pickers exclusively from their sub-entry selections (`wsChecked`)
+- **Section badge (YOUR HISTORY) not updating on sub-entry toggle** — `updateSectionBadges()` had the same parent-gate bug; workspace sizes now reflect only what is actually selected in the accordion
+
 ## [1.9.0] — 2026-06-14
 
 ### Added
